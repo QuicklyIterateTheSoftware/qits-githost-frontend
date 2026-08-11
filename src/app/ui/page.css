@@ -1,0 +1,87 @@
+/* The furniture a page in this app shares: a heading block, a data table, a note. Pulled into the
+   page component through `styleUrls` rather than into the global stylesheet, so it stays scoped by
+   Angular's emulated encapsulation and a page can still override a rule locally.
+
+   Copied from spa-artifacts, trimmed to what this app draws. */
+
+:host {
+  display: block;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  overflow-wrap: anywhere;
+}
+
+.lede {
+  margin: 0.15rem 0 1rem;
+  color: #6b7280;
+}
+
+/* Tables scroll rather than squeeze: a clone address that wrapped mid-path would be unreadable,
+   and this table is the page. */
+.scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+caption {
+  text-align: left;
+  padding: 0 0 0.4rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+thead th {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.subtle {
+  color: #6b7280;
+}
+
+.note {
+  margin: 0.75rem 0 0;
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

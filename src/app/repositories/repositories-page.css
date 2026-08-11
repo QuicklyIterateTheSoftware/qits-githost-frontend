@@ -1,0 +1,26 @@
+/* The one table on the page. The extra-fields column is the only one allowed to wrap: it holds
+   whatever the service chose to send, so it has no width worth guarding. */
+
+.fields {
+  white-space: normal;
+}
+
+.fields dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+}
+
+.fields dl > div {
+  display: contents;
+}
+
+.fields dt {
+  color: #6b7280;
+}
+
+.fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

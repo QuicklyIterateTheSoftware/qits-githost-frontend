@@ -1,0 +1,66 @@
+<header class="head">
+  <div>
+    <h1>Git host</h1>
+    <p class="lede">
+      Every repository this platform hosts, and where to clone it from. {{ lede() }} The git
+      protocol answers at <code class="mono">/git/</code>; this page is only the catalogue.
+    </p>
+  </div>
+  <qits-button variant="secondary" size="sm" (pressed)="load()">Refresh</qits-button>
+</header>
+
+<app-async
+  [state]="repositories()"
+  loadingLabel="Loading the repositories"
+  errorLabel="Could not load the repositories"
+  (retry)="load()"
+/>
+
+@if (repositories().kind === 'ready') {
+  <div class="scroll">
+    <table>
+      <caption>
+        Clone addresses are relative to this host: prefix them with the address you reached this
+        page on.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Repository</th>
+          <th scope="col">Clone address</th>
+          <th scope="col">What else the host says</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (repository of rows(); track repository.id) {
+          <tr>
+            <th scope="row">{{ repository.id }}</th>
+            <td>
+              <code class="mono">{{ cloneAddress(repository.id) }}</code>
+            </td>
+            <td class="fields">
+              @let fields = fieldsOf(repository);
+              @if (fields.length) {
+                <dl>
+                  @for (field of fields; track field.name) {
+                    <div>
+                      <dt class="mono">{{ field.name }}</dt>
+                      <dd>{{ field.value }}</dd>
+                    </div>
+                  }
+                </dl>
+              } @else {
+                <span class="subtle">nothing beyond the name</span>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="3">
+              <app-empty message="This git host serves no repositories yet." />
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
