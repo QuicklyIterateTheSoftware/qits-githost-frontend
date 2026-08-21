@@ -1,20 +1,19 @@
+/**
+ * How a repository record is drawn: its storage id, and whatever else the host chose to say.
+ *
+ * **There is no clone-address helper here, and there must not be one.** A repository's id on this
+ * host is an opaque storage key minted by qits-projects — it is not a name, and `/git/<id>` is an
+ * internal route only qits-projects may call. Building that string here would put an address on
+ * screen that no reader can use and that the host will refuse them. The one public clone address is
+ * project-scoped, `/git/<project>/<repository>`, and it is spelled on the Projects pages, which are
+ * the only pages that know a repository's project.
+ */
 import type { RepositoryDto } from '../api/dto';
 
 /** One extra field of a repository record, ready to draw: the service's own name for it, and a value. */
 export interface RepositoryField {
   readonly name: string;
   readonly value: string;
-}
-
-/**
- * Where this repository is cloned from.
- *
- * The git protocol lives at `/git`, the UI at `/githost` — two segments of one host, and this is the
- * only place the client spells the first one. A relative address is the honest form: it is correct
- * for whichever host the reader reached this page on, and the platform has more than one.
- */
-export function cloneAddress(id: string): string {
-  return `/git/${id}`;
 }
 
 /**

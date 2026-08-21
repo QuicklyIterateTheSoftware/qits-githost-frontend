@@ -8,12 +8,18 @@ import { provideQitsNavigationLinks } from '@qits/ui-components';
 import { routes } from '../app.routes';
 import type { RepositoryDto } from '../api/dto';
 
+/** Storage ids as the host really mints them: opaque, and readable as nothing but a key. */
+const CI = '3f6c1a9e-0b25-4d1e-9c77-2a0e5b8f4d31';
+const SPA = '8d2b47c0-5e19-4a63-b0f8-71c9e4a26d55';
+const WORKSPACES = 'c1a70f38-9d64-4b02-8e5a-6f3d18b7c920';
+
 /**
  * The catalogue, one state at a time.
  *
- * Two assertions here are about honesty rather than rendering, and they are the ones worth keeping
- * if the rest are ever trimmed: a failed load says so instead of drawing an empty host, and the
- * page costs one request whatever the host holds.
+ * Three assertions here are about honesty rather than rendering, and they are the ones worth keeping
+ * if the rest are ever trimmed: a failed load says so instead of drawing an empty host, the page
+ * costs one request whatever the host holds, and no row offers a clone address — the ids are
+ * internal storage keys and `/git/<id>` is a route the reader may not call.
  */
 describe('RepositoriesPage', () => {
   let http: HttpTestingController;
@@ -57,29 +63,40 @@ describe('RepositoriesPage', () => {
     http.expectOne('/githost/api/repositories').flush({ repositories });
   }
 
-  it('lists every repository with its clone address, and reads one request to do it', async () => {
+  it('lists every repository by its storage id, and reads one request to do it', async () => {
     await open();
-    flush([{ id: 'qits-ci' }, { id: 'qits-spa-githost' }, { id: 'qits-workspaces' }]);
+    flush([{ id: CI }, { id: SPA }, { id: WORKSPACES }]);
     await settle();
 
-    expect(text()).toContain('qits-ci');
-    expect(text()).toContain('/git/qits-ci');
-    expect(text()).toContain('/git/qits-workspaces');
+    expect(text()).toContain(CI);
+    expect(text()).toContain(WORKSPACES);
     expect(text()).toContain('3 repositories.');
     expect(page().querySelectorAll('tbody tr')).toHaveLength(3);
     // The variable term of the load budget is zero: nothing is read per row.
     http.verify();
   });
 
+  it('offers no clone address: an id-addressed one would be internal and unusable', async () => {
+    await open();
+    flush([{ id: CI }]);
+    await settle();
+
+    expect(text()).not.toContain(`/git/${CI}`);
+    expect(text()).not.toContain('Clone address');
+    expect(page().querySelector('tbody a')).toBeNull();
+    // The reader is told where the address does live.
+    expect(text()).toContain('Projects');
+  });
+
   it('shows the fields the service chose to send, and misses none it did not', async () => {
     await open();
-    flush([{ id: 'qits-ci', defaultBranch: 'main', branchCount: 3 }, { id: 'plain' }]);
+    flush([{ id: CI, defaultBranch: 'main', branchCount: 3 }, { id: SPA }]);
     await settle();
 
     expect(text()).toContain('defaultBranch');
     expect(text()).toContain('main');
     expect(text()).toContain('branchCount');
-    expect(text()).toContain('nothing beyond the name');
+    expect(text()).toContain('nothing beyond the id');
   });
 
   it('says an empty host is empty', async () => {
@@ -117,9 +134,9 @@ describe('RepositoriesPage', () => {
     const retry = page().querySelector('[role="alert"] button') as HTMLButtonElement;
     retry.click();
     await settle();
-    flush([{ id: 'qits-ci' }]);
+    flush([{ id: CI }]);
     await settle();
 
-    expect(text()).toContain('/git/qits-ci');
+    expect(text()).toContain(CI);
   });
 });

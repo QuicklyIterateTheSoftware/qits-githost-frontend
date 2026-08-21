@@ -2,8 +2,9 @@
   <div>
     <h1>Git host</h1>
     <p class="lede">
-      Every repository this platform hosts, and where to clone it from. {{ lede() }} The git
-      protocol answers at <code class="mono">/git/</code>; this page is only the catalogue.
+      Every repository this platform stores, by the key it is stored under. {{ lede() }} This host
+      is the platform's repository storage: the keys below are internal, and the address to clone a
+      repository from is project-scoped and lives on the Projects pages.
     </p>
   </div>
   <qits-button variant="secondary" size="sm" (pressed)="load()">Refresh</qits-button>
@@ -20,23 +21,21 @@
   <div class="scroll">
     <table>
       <caption>
-        Clone addresses are relative to this host: prefix them with the address you reached this
-        page on.
+        An id is an opaque storage key, not a name and not an address. Nothing outside qits-projects
+        can clone by it.
       </caption>
       <thead>
         <tr>
-          <th scope="col">Repository</th>
-          <th scope="col">Clone address</th>
+          <th scope="col">Id</th>
           <th scope="col">What else the host says</th>
         </tr>
       </thead>
       <tbody>
         @for (repository of rows(); track repository.id) {
           <tr>
-            <th scope="row">{{ repository.id }}</th>
-            <td>
-              <code class="mono">{{ cloneAddress(repository.id) }}</code>
-            </td>
+            <th scope="row">
+              <code class="mono">{{ repository.id }}</code>
+            </th>
             <td class="fields">
               @let fields = fieldsOf(repository);
               @if (fields.length) {
@@ -49,13 +48,13 @@
                   }
                 </dl>
               } @else {
-                <span class="subtle">nothing beyond the name</span>
+                <span class="subtle">nothing beyond the id</span>
               }
             </td>
           </tr>
         } @empty {
           <tr>
-            <td colspan="3">
+            <td colspan="2">
               <app-empty message="This git host serves no repositories yet." />
             </td>
           </tr>

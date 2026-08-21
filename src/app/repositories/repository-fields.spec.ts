@@ -1,10 +1,4 @@
-import { cloneAddress, extraFields } from './repository-fields';
-
-describe('cloneAddress', () => {
-  it('puts the id under the git segment, not this app’s', () => {
-    expect(cloneAddress('qits-ci')).toBe('/git/qits-ci');
-  });
-});
+import { extraFields } from './repository-fields';
 
 /**
  * The defensive half of the contract: only `id` is promised, everything else is drawn from whatever

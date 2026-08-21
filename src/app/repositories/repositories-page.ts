@@ -5,12 +5,17 @@ import type { RepositoryDto } from '../api/dto';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { LOADING, failed, ready, type Loadable } from '../ui/loadable';
-import { cloneAddress, extraFields, type RepositoryField } from './repository-fields';
+import { extraFields, type RepositoryField } from './repository-fields';
 
 /**
- * The front door: every repository this git host serves, and the address to clone it from.
+ * The front door: every repository this git host stores, by the key it stores it under.
  *
  * **Load budget: `1 + 0`.** One read — `GET /githost/api/repositories` — and nothing per row.
+ *
+ * **This is a storage view, so it advertises no clone address.** The id is an opaque key minted by
+ * qits-projects; the public address of a repository is `/git/<project>/<repository>`, and only the
+ * Projects pages know a repository's project. Drawing `/git/<id>` here would offer the reader an
+ * internal route they are not allowed to call — see {@link ./repository-fields}.
  *
  * **A failed load is said, never drawn as an empty host.** "There are no repositories" and "I could
  * not ask" are different facts; the first is a sentence in the table, the second is an error with a
@@ -31,8 +36,6 @@ import { cloneAddress, extraFields, type RepositoryField } from './repository-fi
 })
 export class RepositoriesPage {
   private readonly api = inject(GithostApi);
-
-  protected readonly cloneAddress = cloneAddress;
 
   protected readonly repositories = signal<Loadable<readonly RepositoryDto[]>>(LOADING);
 

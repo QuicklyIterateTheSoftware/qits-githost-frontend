@@ -10,8 +10,9 @@ import { RouterLink } from '@angular/router';
  * frontend. Here the segment is already ours, so there is nobody to hand it to.
  *
  * One caveat for whoever lands here from a `/git/…` address: the git protocol is **not** served
- * under `/githost/`. It is mounted at `/git`, and this service's ignored path prefixes 404 a
- * mistyped machine path on purpose.
+ * under `/githost/`. It is mounted at `/git`, where a repository answers at
+ * `/git/<project>/<repository>`, and this service's ignored path prefixes 404 a mistyped machine
+ * path on purpose.
  */
 @Component({
   selector: 'app-not-found',
