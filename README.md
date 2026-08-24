@@ -1,16 +1,21 @@
 # qits-spa-githost
 
 The git host's catalogue: the repositories qits-githost serves, and the address to clone each of
-them from. Served by qits-githost itself at `/githost/` through Quinoa. One page, and all of it is
-read.
+them from. Served by qits-githost itself at `/` on `githost.<env>.<domain>` through Quinoa. One
+page, and all of it is read.
 
-- **`/githost/`** — every repository, its id, its clone address, and whatever else the service says
-  about it. One request, and none per repository.
+- **`/`** — every repository, its id, its clone address, and whatever else the service says about it.
+  One request, and none per repository.
 
-**Two segments, one host.** The git protocol answers at `/git/…` and this client is mounted at
-`/githost/`. So a clone address is `/git/<id>` — spelled relative, because it is correct for
-whichever host the reader reached the page on and the platform has more than one. This page is the
-catalogue only; it never talks to `/git`.
+**Two planes, one host.** The git protocol answers at `/git/…` and this client is mounted at `/`, on
+the same authority every clone url already spells. So a clone address is `/git/<id>` — spelled
+relative, because it is correct for whichever host the reader reached the page on and the platform
+has more than one. This page is the catalogue only; it never talks to `/git`.
+
+**This is a `system` app.** The git host serves every project rather than belonging to one, so it
+routes no `/<projectSlug>/...` form — `provideQitsScope('system')` in `app.config.ts` says so, and
+picking a project in the chrome's picker leaves for qits-projects instead of rewriting an address
+this app does not serve.
 
 **Only `id` is a promise.** The service's repository record is expected to grow — a default branch,
 a description, a size — so the table draws the id and the clone address as columns and everything
@@ -25,18 +30,20 @@ message and a retry — and no table at all. An empty host gets a sentence.
 
 ## Layout
 
-The chrome — top bar, platform navigation — is `QitsMainLayout` from `@qits/ui-components`, mounted
-as the root _route_ component so it survives every navigation beneath it. The navigation's links
-come from the gateway's `/main-navigation`, asked once at startup by `provideQitsNavigation()`.
+The chrome — top bar, project picker, platform navigation — is `QitsMainLayout` from
+`@qits/ui-components`, mounted as the root _route_ component so it survives every navigation beneath
+it. The navigation tree comes from the edge's `/main-navigation`, asked once at startup by
+`provideQitsNavigation()`; the picker's projects come from `provideQitsProjects()`.
 
 ## Development
 
 ```bash
 npm install       # resolves @qits/* from the platform registry - see .npmrc
-npm start         # ng serve on :4200, /githost/api proxied to the gateway on :8080
+npm start         # ng serve on :4200; /githost/api, /projects/api and /main-navigation
+                  # proxied to the edge on :8080
 npm run lint
 npm test          # vitest on jsdom
-npm run build     # dist/qits-spa-githost/browser, base href /githost/
+npm run build     # dist/qits-spa-githost/browser, base href /
 ```
 
 `.npmrc` points npm at the two local platform registries: npmjs through qits-platform-mirror's
