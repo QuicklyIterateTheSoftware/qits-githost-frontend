@@ -1,25 +1,30 @@
 # qits-spa-githost
 
-The git host's catalogue: the repositories qits-githost serves, and the address to clone each of
-them from. Served by qits-githost itself at `/` on `githost.<env>.<domain>` through Quinoa. One
-page, and all of it is read.
+The git host's browser plane: the Code pages — a repository's committed contents, read straight
+from the bare storage — and the storage audit. Served by qits-githost itself at `/` on
+`githost.<env>.<domain>` through Quinoa. All of it is read.
 
-- **`/`** — every repository, its id, its clone address, and whatever else the service says about it.
-  One request, and none per repository.
+- **`/<project>/<category>/<repository>[/<rev…>]`** — the Code page: file tree and file viewer at
+  a rev, the address the platform's per-repository `Code` navigation entries link to. No tail means
+  the default branch; a branch name keeps its slashes as URL segments. The open file and a painted
+  line range are query parameters (`?path=…`, `?lines=12-20`). Three requests — describe, the whole
+  tree in one read, and one per opened file.
+- **`/`** — the orphaned repositories: storage rows whose id qits-projects' catalogue no longer
+  names. Two requests, none per row.
 
-**Two planes, one host.** The git protocol answers at `/git/…` and this client is mounted at `/`, on
-the same authority every clone url already spells. So a clone address is `/git/<id>` — spelled
-relative, because it is correct for whichever host the reader reached the page on and the platform
-has more than one. This page is the catalogue only; it never talks to `/git`.
+**Two planes, one host.** The git protocol answers at `/git/…` and this client is mounted at `/`,
+on the same authority every clone url already spells. This client never talks to `/git`: its reads
+go to `/githost/api/repositories/…`, the browser plane's own endpoints, which stay open when the
+`/git/<id>` storage scheme is locked to qits-projects.
 
-**This is a `system` app.** The git host serves every project rather than belonging to one, so it
-routes no `/<projectSlug>/...` form — `provideQitsScope('system')` in `app.config.ts` says so, and
-picking a project in the chrome's picker leaves for qits-projects instead of rewriting an address
-this app does not serve.
+**This is a `repository`-routed app.** The Code pages belong to one repository each, so
+`provideQitsScope('repository')` in `app.config.ts` routes `/<slug>/<category>/<repo>/…`, the
+chrome's project picker navigates in-app to `/<slug>`, and `QITS_SCOPE.repositoryId()` resolves the
+repository name in the address to the storage UUID the browse endpoints key by.
 
-**Only `id` is a promise.** The service's repository record is expected to grow — a default branch,
-a description, a size — so the table draws the id and the clone address as columns and everything
-else as whatever arrived, named the way the wire names it. A field the service adds shows up here
+**Only `id` is a promise of the catalogue record.** The service's repository record is expected to
+grow — a description, a size — so the audit table draws the id as a column and everything else as
+whatever arrived, named the way the wire names it. A field the service adds shows up here
 without a release of this repository; a field it drops leaves no blank column behind. A field with
 nothing in it is not drawn at all: a label above an empty cell claims the service answered
 "nothing" when it answered nothing at all.

@@ -20,8 +20,12 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   template: `
     <h1>No such page here</h1>
-    <p>This is the git host's catalogue. It lists the repositories, and nothing else.</p>
-    <p><a routerLink="/">Back to the repositories</a></p>
+    <p>
+      This is the git host. It shows a repository's contents at
+      <code>/&lt;project&gt;/&lt;category&gt;/&lt;repository&gt;</code> — the Code pages — and its
+      own storage audit at the root, and nothing else.
+    </p>
+    <p><a routerLink="/">Back to the orphaned repositories</a></p>
   `,
   styles: `
     h1 {
