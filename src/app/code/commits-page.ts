@@ -109,29 +109,41 @@ export class CommitsPage {
       });
     });
 
-    // The log needs the branch NAME, so an empty tail waits for the describe to say what the
-    // default branch is called; an empty repository has no log to ask for.
+    // The bare `…/commits` is a redirector, exactly as the bare tree address is: once the
+    // describe names the default branch, the URL moves to `commits/<name>`. An empty repository
+    // stays put — nothing to spell.
     effect(() => {
-      const repoId = this.repoId();
       const described = this.describe();
       const rev = this.revTail();
       untracked(() => {
-        if (!repoId) {
+        if (rev !== '' || described.kind !== 'ready' || described.value.branches.length === 0) {
           return;
         }
-        const branch =
-          rev !== ''
-            ? rev
-            : described.kind === 'ready'
-              ? (described.value.defaultBranch ?? '')
-              : '';
-        if (branch === '' || (described.kind === 'ready' && described.value.branches.length === 0)) {
+        const branch = described.value.defaultBranch;
+        const { project, category, repository } = this.scoped();
+        if (!branch || !project || !category || !repository) {
           return;
         }
-        const key = `${repoId}@${branch}`;
+        void this.router.navigate(
+          ['/', project, category, repository, 'commits', ...branch.split('/')],
+          { replaceUrl: true, queryParamsHandling: 'preserve' },
+        );
+      });
+    });
+
+    // The log waits for a SPELLED branch — the bare form redirects rather than loading, so no
+    // request is ever spent on an address about to be replaced.
+    effect(() => {
+      const repoId = this.repoId();
+      const rev = this.revTail();
+      untracked(() => {
+        if (!repoId || rev === '') {
+          return;
+        }
+        const key = `${repoId}@${rev}`;
         if (this.logFor !== key) {
           this.logFor = key;
-          void this.loadLog(repoId, branch);
+          void this.loadLog(repoId, rev);
         }
       });
     });

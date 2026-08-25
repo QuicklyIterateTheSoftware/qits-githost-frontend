@@ -131,17 +131,39 @@ export class CodePage {
       });
     });
 
-    // The tree read waits for the describe: an empty repository is said through its empty branch
-    // list, and asking for its tree would only manufacture a no-such-rev error to not draw.
+    // The bare address is a redirector, not a place: once the describe says what the default
+    // branch is called, the URL moves to `branches/<name>` so the address spells what is on
+    // screen. `replaceUrl` keeps the back button from bouncing through the bare form, and the
+    // query is preserved so a `?path=…&lines=…` deep link survives the hop. An empty repository
+    // stays put — its branch is unborn, and spelling it would put a name on nothing.
+    effect(() => {
+      const described = this.describe();
+      const rev = this.revTail();
+      untracked(() => {
+        if (rev !== '' || described.kind !== 'ready' || described.value.branches.length === 0) {
+          return;
+        }
+        const branch = described.value.defaultBranch;
+        const { project, category, repository } = this.scoped();
+        if (!branch || !project || !category || !repository) {
+          return;
+        }
+        void this.router.navigate(
+          ['/', project, category, repository, 'branches', ...branch.split('/')],
+          { replaceUrl: true, queryParamsHandling: 'preserve' },
+        );
+      });
+    });
+
+    // The tree read waits for a SPELLED rev: the bare forms redirect (above), an empty repository
+    // is said through its empty branch list, and asking for an unspelled tree would only race the
+    // redirect into a duplicate request.
     effect(() => {
       const repoId = this.repoId();
       const described = this.describe();
       const rev = this.revTail();
       untracked(() => {
-        if (!repoId || described.kind !== 'ready') {
-          return;
-        }
-        if (described.value.branches.length === 0 && rev === '') {
+        if (!repoId || described.kind !== 'ready' || rev === '') {
           return;
         }
         const key = `${repoId}@${rev}`;

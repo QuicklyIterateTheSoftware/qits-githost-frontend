@@ -1,4 +1,4 @@
-import type { CanMatchFn, Routes, UrlSegment } from '@angular/router';
+import type { CanMatchFn, Routes, UrlMatchResult, UrlSegment } from '@angular/router';
 import { QitsMainLayout, QITS_CATEGORIES, type QitsCategory } from '@qits/ui-components';
 import { CodePage } from './code/code-page';
 import { CommitPage } from './code/commit-page';
@@ -35,25 +35,30 @@ import { OrphanedRepositoriesPage } from './repositories/orphaned-repositories-p
  */
 const OWN: Routes = [{ path: '', component: OrphanedRepositoriesPage }];
 
+/**
+ * One matcher per view, and being ONE is the point: the bare repository address redirects to
+ * `branches/<default>` once the default branch is known, and the branch dropdown navigates between
+ * refs — if the bare and the spelled forms were separate route configs, every one of those hops
+ * would destroy and rebuild the page and re-fetch what it already had. A single config keeps the
+ * default `RouteReuseStrategy` reusing the component, so a hop is a signal change, not a reload.
+ * A slashy branch also falls out for free: the matcher consumes the whole tail, so
+ * `branches/feature/x` is one ref that the page re-reads from the URL.
+ */
+function treeMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  if (segments.length === 0 || segments[0].path === 'branches') {
+    return { consumed: segments };
+  }
+  return null;
+}
+
+function commitsMatcher(segments: UrlSegment[]): UrlMatchResult | null {
+  return segments[0]?.path === 'commits' ? { consumed: segments } : null;
+}
+
 const REPOSITORY: Routes = [
-  { path: '', component: CodePage },
-  // A slashy branch holds more segments than a param could: the `**` child catches the whole
-  // tail and the pages re-read it from the URL, so `branches/feature/x` is one ref.
-  {
-    path: 'branches',
-    children: [
-      { path: '', component: CodePage },
-      { path: '**', component: CodePage },
-    ],
-  },
-  {
-    path: 'commits',
-    children: [
-      { path: '', component: CommitsPage },
-      { path: '**', component: CommitsPage },
-    ],
-  },
   { path: 'commit/:sha', component: CommitPage },
+  { matcher: commitsMatcher, component: CommitsPage },
+  { matcher: treeMatcher, component: CodePage },
 ];
 
 /**
