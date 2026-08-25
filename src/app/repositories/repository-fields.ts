@@ -5,8 +5,8 @@
  * host is an opaque storage key minted by qits-projects — it is not a name, and `/git/<id>` is an
  * internal route only qits-projects may call. Building that string here would put an address on
  * screen that no reader can use and that the host will refuse them. The one public clone address is
- * project-scoped, `/git/<project>/<repository>`, and it is spelled on the Projects pages, which are
- * the only pages that know a repository's project.
+ * project-scoped, `/git/<project>/<repository>`, and it is spelled on the Projects pages. An
+ * orphan, the only kind of record this helper draws now, has no project left to spell one with.
  */
 import type { RepositoryDto } from '../api/dto';
 

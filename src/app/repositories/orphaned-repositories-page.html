@@ -1,37 +1,38 @@
 <header class="head">
   <div>
-    <h1>Git host</h1>
+    <h1>Orphaned repositories</h1>
     <p class="lede">
-      Every repository this platform stores, by the key it is stored under. {{ lede() }} This host
-      is the platform's repository storage: the keys below are internal, and the address to clone a
-      repository from is project-scoped and lives on the Projects pages.
+      Repositories this host stores that the platform's catalogue no longer names. {{ lede() }}
+      A named repository is browsed through its Code page; what is listed here has no name left —
+      only the internal storage key, which is not an address and cannot be cloned. Cleaning one up
+      is a qits-projects operation, not something this page offers.
     </p>
   </div>
   <qits-button variant="secondary" size="sm" (pressed)="load()">Refresh</qits-button>
 </header>
 
 <app-async
-  [state]="repositories()"
-  loadingLabel="Loading the repositories"
-  errorLabel="Could not load the repositories"
+  [state]="audit()"
+  loadingLabel="Auditing the stored repositories"
+  errorLabel="Could not audit the stored repositories"
   (retry)="load()"
 />
 
-@if (repositories().kind === 'ready') {
+@if (audit().kind === 'ready') {
   <div class="scroll">
     <table>
       <caption>
-        An id is an opaque storage key, not a name and not an address. Nothing outside qits-projects
-        can clone by it.
+        A row here is storage the platform no longer accounts for: nothing links to it, nothing
+        backs it up, and nothing will clean it up on its own.
       </caption>
       <thead>
         <tr>
-          <th scope="col">Id</th>
+          <th scope="col">Storage id</th>
           <th scope="col">What else the host says</th>
         </tr>
       </thead>
       <tbody>
-        @for (repository of rows(); track repository.id) {
+        @for (repository of orphans(); track repository.id) {
           <tr>
             <th scope="row">
               <code class="mono">{{ repository.id }}</code>
@@ -55,7 +56,9 @@
         } @empty {
           <tr>
             <td colspan="2">
-              <app-empty message="This git host serves no repositories yet." />
+              <app-empty
+                message="No orphaned repositories — everything in storage is accounted for by the platform catalogue."
+              />
             </td>
           </tr>
         }

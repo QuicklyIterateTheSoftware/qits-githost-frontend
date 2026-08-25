@@ -1,0 +1,105 @@
+<header class="head">
+  <div>
+    <h1>{{ scoped().repository }}</h1>
+    <p class="lede">
+      The committed contents of this repository, read straight from the git host's storage — no
+      checkout involved.
+      @if (shortSha()) {
+        Showing <code class="mono">{{ effectiveRev() }}</code> at
+        <code class="mono">{{ shortSha() }}</code
+        >.
+      }
+    </p>
+  </div>
+  @if (resolution() === 'resolved' && revOptions().length > 0) {
+    <label class="rev">
+      <span class="rev-label">Branch</span>
+      <select (change)="onRevPicked($event)">
+        @for (option of revOptions(); track option) {
+          <option [value]="option" [selected]="option === effectiveRev()">{{ option }}</option>
+        }
+      </select>
+    </label>
+  }
+</header>
+
+@switch (resolution()) {
+  @case ('resolving') {
+    <p class="subtle" role="status">Resolving the repository…</p>
+  }
+  @case ('failed') {
+    <app-empty
+      message="The project's repository list could not be loaded, so the name in this address cannot be resolved to a repository."
+    />
+  }
+  @case ('unknown') {
+    <app-empty
+      [message]="
+        'No repository named ' +
+        (scoped().repository || '') +
+        ' in project ' +
+        (scoped().project || '') +
+        '.'
+      "
+    />
+  }
+  @case ('resolved') {
+    @if (notOnHost()) {
+      <app-empty
+        message="The platform knows this repository, but the git host does not hold it yet — it may still be being provisioned."
+      />
+    } @else {
+      <app-async
+        [state]="describe()"
+        loadingLabel="Loading the repository"
+        errorLabel="Could not load the repository"
+        (retry)="retryDescribe()"
+      />
+
+      @if (describe().kind === 'ready') {
+        @if (emptyRepository()) {
+          <app-empty message="Empty repository — nothing has been pushed to it yet." />
+        } @else if (unknownRev()) {
+          <div class="missing-rev" role="alert">
+            <p>
+              There is no <code class="mono">{{ revTail() }}</code> in this repository — the branch
+              may have been deleted, or the address mistyped.
+            </p>
+            <button type="button" class="to-default" (click)="toDefaultBranch()">
+              Go to the default branch
+            </button>
+          </div>
+        } @else {
+          <app-async
+            [state]="tree()"
+            loadingLabel="Loading the tree"
+            errorLabel="Could not load the tree"
+            (retry)="retryTree()"
+          />
+
+          @if (tree().kind === 'ready' && repoId(); as id) {
+            <div class="panes">
+              <aside class="side">
+                <app-file-tree
+                  [rows]="rows()"
+                  [selected]="selectedPath()"
+                  label="Repository tree"
+                  (openFile)="openFile($event)"
+                  (toggleDir)="toggleDir($event)"
+                />
+              </aside>
+              <section class="main">
+                <app-file-viewer
+                  [repoId]="id"
+                  [rev]="effectiveRev() || undefined"
+                  [path]="selectedPath()"
+                  [anchor]="anchor()"
+                />
+              </section>
+            </div>
+          }
+        }
+      }
+    }
+  }
+}

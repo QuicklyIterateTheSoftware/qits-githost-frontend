@@ -45,20 +45,23 @@ describe('App', () => {
     expect(shell.children).toHaveLength(1);
   });
 
-  it('routes the base path to the shared layout, with the catalogue inside it', async () => {
+  it('routes the base path to the shared layout, with the storage audit inside it', async () => {
     const harness = await RouterTestingHarness.create('/');
     const layout = harness.routeNativeElement as HTMLElement;
 
     expect(layout.tagName.toLowerCase()).toBe('qits-main-layout');
     expect(layout.querySelectorAll('nav a')).toHaveLength(NAV.length);
-    expect(layout.querySelector('main app-repositories-page')).not.toBeNull();
+    expect(layout.querySelector('main app-orphaned-repositories-page')).not.toBeNull();
 
-    // The page's one read, drained so the harness has no dangling request.
+    // The audit's two reads, drained so the harness has no dangling request.
     http.expectOne('/githost/api/repositories').flush({ repositories: [] });
+    http.expectOne('/projects/api/repositories').flush({ repositories: [] });
   });
 
-  it('draws an unknown URL under /githost/ as a page, still inside the chrome', async () => {
-    const harness = await RouterTestingHarness.create('/nothing-here');
+  it('draws an unknown URL as a page, still inside the chrome', async () => {
+    // Two segments with no category in the middle: a SINGLE unknown segment is the `:project`
+    // form now and draws the audit page unscoped, the same grammar every scoped sibling SPA has.
+    const harness = await RouterTestingHarness.create('/nothing/here');
     const layout = harness.routeNativeElement as HTMLElement;
 
     expect(layout.tagName.toLowerCase()).toBe('qits-main-layout');

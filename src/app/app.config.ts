@@ -27,11 +27,13 @@ import { routes } from './app.routes';
  *   project, so which one is open is the outermost fact about a page rather than a filter inside
  *   one of them — above the links, because it scopes them. It also installs the repositories of
  *   whatever project is in scope, which the sidebar draws.
- * - `provideQitsScope('system')` says how deep this application's own addresses go: not at all. The
- *   git host serves every project rather than belonging to one, so there is no `/<slug>/...` route
- *   here to rewrite — and that is why picking a project LEAVES for qits-projects rather than landing
- *   the reader on a 404 with the right URL. The scope now comes from the path, never a query
- *   parameter; without this provider the picker is not rendered at all.
+ * - `provideQitsScope('repository')` says how deep this application's own addresses go: to a
+ *   repository. The Code pages live at `/<slug>/<category>/<repo>/…`, which is the address the
+ *   platform's per-repository `Code` navigation entries link to — so picking a project navigates
+ *   in-app to `/<slug>` rather than leaving for qits-projects, and `QITS_SCOPE.repositoryId()`
+ *   resolves the repository name in the address to the storage UUID this host keys by. The scope
+ *   comes from the path, never a query parameter; without this provider the picker is not rendered
+ *   at all.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -40,6 +42,6 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch()),
     provideQitsNavigation(),
     provideQitsProjects(),
-    provideQitsScope('system'),
+    provideQitsScope('repository'),
   ],
 };
