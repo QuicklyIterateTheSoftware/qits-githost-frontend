@@ -67,3 +67,53 @@ export interface RepositoryCoordinatesDto {
   readonly name: string;
   readonly mainBranch: string;
 }
+
+/**
+ * The commit shapes qits-projects answers (`GET /projects/api/repositories/{id}/commits…`). That
+ * service reads them off its own mirror of this host's repositories, which is why the commits
+ * views ask it rather than the git host: the range arithmetic — everything on main, only the
+ * unmerged commits on any other branch — already lives there.
+ */
+export interface CommitDto {
+  readonly hash: string;
+  readonly shortHash: string;
+  readonly author: string;
+  readonly email: string;
+  /** Committer date, strict ISO-8601. */
+  readonly date: string;
+  /** The commit subject (first line). */
+  readonly message: string;
+  /** The paths the commit changed. Empty for merge commits (git omits them under --name-only). */
+  readonly files: readonly string[];
+}
+
+/**
+ * The log for a branch. `parent` is the branch the range was computed against; null means no
+ * parent applied and the FULL history came back — which is exactly the main-branch case.
+ */
+export interface CommitLogDto {
+  readonly branch: string;
+  readonly parent: string | null;
+  readonly commits: readonly CommitDto[];
+}
+
+/** One file a commit touched. `oldPath` is non-null only for renames/copies. */
+export interface CommitFileChangeDto {
+  readonly path: string;
+  readonly oldPath: string | null;
+  readonly changeType: 'ADDED' | 'MODIFIED' | 'DELETED' | 'RENAMED' | 'COPIED' | 'TYPE_CHANGED';
+}
+
+/** What a commit changed relative to its diff base (its first parent unless one was named). */
+export interface CommitChangesDto {
+  readonly commit: string;
+  readonly parent: string | null;
+  readonly files: readonly CommitFileChangeDto[];
+}
+
+/** One file's unified diff. Empty `diff` means no textual change — binary, or a pure rename. */
+export interface CommitFileDiffDto {
+  readonly path: string;
+  readonly changeType: string;
+  readonly diff: string;
+}

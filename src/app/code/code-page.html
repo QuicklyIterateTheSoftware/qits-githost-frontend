@@ -12,14 +12,17 @@
     </p>
   </div>
   @if (resolution() === 'resolved' && revOptions().length > 0) {
-    <label class="rev">
-      <span class="rev-label">Branch</span>
-      <select (change)="onRevPicked($event)">
-        @for (option of revOptions(); track option) {
-          <option [value]="option" [selected]="option === effectiveRev()">{{ option }}</option>
-        }
-      </select>
-    </label>
+    <div class="rev-actions">
+      <label class="rev">
+        <span class="rev-label">Branch</span>
+        <select (change)="onRevPicked($event)">
+          @for (option of revOptions(); track option) {
+            <option [value]="option" [selected]="option === effectiveRev()">{{ option }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="view-switch" (click)="toCommits()">Commits</button>
+    </div>
   }
 </header>
 

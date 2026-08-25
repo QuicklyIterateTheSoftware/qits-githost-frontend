@@ -1,0 +1,76 @@
+<header class="head">
+  <div>
+    <h1>
+      {{ scoped().repository }} — commit <code class="mono">{{ shortSha() }}</code>
+    </h1>
+    <p class="lede">
+      {{ lede() || 'What this commit changed, file by file, with the unified diff of the open one.' }}
+    </p>
+  </div>
+  @if (resolution() === 'resolved') {
+    <div class="actions">
+      <button type="button" class="view-switch" (click)="toCommits()">Commits</button>
+      <button type="button" class="view-switch" (click)="browseTree()">Browse this commit</button>
+    </div>
+  }
+</header>
+
+@switch (resolution()) {
+  @case ('resolving') {
+    <p class="subtle" role="status">Resolving the repository…</p>
+  }
+  @case ('failed') {
+    <app-empty
+      message="The project's repository list could not be loaded, so the name in this address cannot be resolved to a repository."
+    />
+  }
+  @case ('unknown') {
+    <app-empty
+      [message]="
+        'No repository named ' +
+        (scoped().repository || '') +
+        ' in project ' +
+        (scoped().project || '') +
+        '.'
+      "
+    />
+  }
+  @case ('resolved') {
+    <app-async
+      [state]="changes()"
+      loadingLabel="Loading the commit's changes"
+      errorLabel="Could not load the commit's changes"
+      (retry)="retryChanges()"
+    />
+
+    @if (changes().kind === 'ready' && repoId(); as id) {
+      <div class="panes">
+        <aside class="side">
+          <ul class="files" role="list">
+            @for (file of files(); track file.path) {
+              <li>
+                <button
+                  type="button"
+                  class="file"
+                  [class.selected]="file.path === selectedPath()"
+                  [attr.title]="titleOf(file)"
+                  (click)="openFile(file.path)"
+                >
+                  <span class="mark" [attr.data-change]="file.changeType">{{ markOf(file) }}</span>
+                  <span class="path">{{ file.path }}</span>
+                </button>
+              </li>
+            } @empty {
+              <li>
+                <app-empty message="This commit changed no files — a merge, or an empty commit." />
+              </li>
+            }
+          </ul>
+        </aside>
+        <section class="main">
+          <app-diff-viewer [repoId]="id" [sha]="sha()" [path]="selectedPath()" />
+        </section>
+      </div>
+    }
+  }
+}
