@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideLocationMocks } from '@angular/common/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import {
   provideQitsNavigationLinks,
@@ -63,13 +63,15 @@ describe('CodePage', () => {
       .flush({ id: REPO_ID, defaultBranch: 'main', branches });
   }
 
-  it('resolves the repository name to its storage id and draws the default-branch tree', async () => {
+  it('redirects the bare address to branches/<default> and draws that tree', async () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci');
     await settle();
     flushDescribe(['main']);
     await settle();
+    // The address now SPELLS the branch — the bare form was a redirector.
+    expect(TestBed.inject(Router).url).toContain('/qits/services/qits-ci/branches/main');
     http
-      .expectOne(`${API}/tree`)
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
       .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md', 'src/app/main.ts'] });
     await settle();
 
@@ -108,8 +110,11 @@ describe('CodePage', () => {
     await settle();
     flushDescribe(['main']);
     await settle();
+    // The redirect carried the deep link's query along (the serializer respells the slashes).
+    expect(TestBed.inject(Router).url).toContain('/branches/main');
+    expect(TestBed.inject(Router).url).toContain('path=src%2Fapp%2Fmain.ts');
     http
-      .expectOne(`${API}/tree`)
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
       .flush({ rev: 'main', commitSha: 'c'.repeat(40), paths: ['src/app/main.ts'] });
     await settle();
     http

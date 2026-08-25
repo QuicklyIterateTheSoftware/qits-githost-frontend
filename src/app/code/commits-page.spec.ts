@@ -80,6 +80,8 @@ describe('CommitsPage', () => {
     await settle();
     flushDescribe(['main']);
     await settle();
+    // The bare form redirected to the spelled default branch.
+    expect(TestBed.inject(Router).url).toContain('/qits/services/qits-ci/commits/main');
     http
       .expectOne(
         (request) =>
