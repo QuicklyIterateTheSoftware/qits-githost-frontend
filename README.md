@@ -4,11 +4,18 @@ The git host's browser plane: the Code pages — a repository's committed conten
 from the bare storage — and the storage audit. Served by qits-githost itself at `/` on
 `githost.<env>.<domain>` through Quinoa. All of it is read.
 
-- **`/<project>/<category>/<repository>[/<rev…>]`** — the Code page: file tree and file viewer at
-  a rev, the address the platform's per-repository `Code` navigation entries link to. No tail means
-  the default branch; a branch name keeps its slashes as URL segments. The open file and a painted
-  line range are query parameters (`?path=…`, `?lines=12-20`). Three requests — describe, the whole
-  tree in one read, and one per opened file.
+- **`/<project>/<category>/<repository>`** and **`…/branches/<ref…>`** — the Code page: file tree
+  and file viewer at a rev. The bare form is the default branch and is what the platform's
+  per-repository `Code` navigation entries link to; the `branches/` form spells the ref, a slashy
+  branch name keeping its slashes as segments. The open file and a painted line range are query
+  parameters (`?path=…`, `?lines=12-20`). Three requests — describe, the whole tree in one read,
+  and one per opened file.
+- **`…/commits[/<ref…>]`** — the branch's log, from qits-projects' mirror: the full history on the
+  default branch, and on any other branch only the commits its parent does not have yet. Each row
+  opens the commit.
+- **`…/commit/<sha>`** — one commit as the same two-pane view scoped to what it changed: the
+  touched files on the left, the open file's unified diff (`?path=…`) on the right, plus a jump to
+  browse the whole tree as it stood at that commit.
 - **`/`** — the orphaned repositories: storage rows whose id qits-projects' catalogue no longer
   names. Two requests, none per row.
 

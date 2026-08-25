@@ -80,10 +80,12 @@ describe('CodePage', () => {
     // The deep path's file is behind its closed directory, not lost.
     expect(text()).not.toContain('main.ts');
     expect(text()).toContain('Select a file to view its contents.');
+    // The orthogonal view is one press away.
+    expect(page().querySelector('.view-switch')?.textContent).toContain('Commits');
   });
 
   it('reads the rev from the URL tail, slashes intact', async () => {
-    harness = await RouterTestingHarness.create('/qits/services/qits-ci/feature/slashy');
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/feature/slashy');
     await settle();
     flushDescribe(['feature/slashy', 'main']);
     await settle();
@@ -136,7 +138,7 @@ describe('CodePage', () => {
   });
 
   it('names a rev that does not exist and offers the way back', async () => {
-    harness = await RouterTestingHarness.create('/qits/services/qits-ci/gone');
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/gone');
     await settle();
     flushDescribe(['main']);
     await settle();

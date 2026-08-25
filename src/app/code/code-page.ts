@@ -81,13 +81,17 @@ export class CodePage {
   private readonly parsedUrl = computed(() => this.router.parseUrl(this.url()));
 
   /**
-   * The rev the address states: every segment past `/<slug>/<category>/<repo>`, slashes intact.
-   * The empty string means "the default branch" and is what the nav entries link to.
+   * The rev the address states: every segment past `…/<repo>/branches`, slashes intact. The bare
+   * repository address has no `branches` segment and means the default branch — that spelling is
+   * what the platform's `Code` navigation entries link to.
    */
   protected readonly revTail = computed(() => {
     const segments = this.parsedUrl().root.children['primary']?.segments ?? [];
+    if (segments[3]?.path !== 'branches') {
+      return '';
+    }
     return segments
-      .slice(3)
+      .slice(4)
       .map((segment) => segment.path)
       .join('/');
   });
@@ -261,7 +265,24 @@ export class CodePage {
     if (!project || !category || !repository) {
       return;
     }
-    void this.router.navigate(['/', project, category, repository, ...rev.split('/')]);
+    void this.router.navigate(['/', project, category, repository, 'branches', ...rev.split('/')]);
+  }
+
+  /** To the same rev's log — the orthogonal view of the branch. */
+  protected toCommits(): void {
+    const { project, category, repository } = this.scoped();
+    if (!project || !category || !repository) {
+      return;
+    }
+    const rev = this.effectiveRev();
+    void this.router.navigate([
+      '/',
+      project,
+      category,
+      repository,
+      'commits',
+      ...(rev ? rev.split('/') : []),
+    ]);
   }
 
   /** To the default branch — the way back from a rev that stopped existing. */

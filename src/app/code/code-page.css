@@ -30,11 +30,33 @@
   }
 }
 
+.rev-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
 .rev {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   align-items: flex-end;
+}
+
+/* The jump to the orthogonal view of the same rev — the log, or back to the files. */
+.view-switch {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.35rem;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.view-switch:hover {
+  background: #f3f4f6;
 }
 
 .rev-label {

@@ -1,0 +1,95 @@
+<header class="head">
+  <div>
+    <h1>{{ scoped().repository }} — commits</h1>
+    <p class="lede">
+      {{ lede() || 'The branch’s log, read from the platform’s mirror of this repository.' }}
+    </p>
+  </div>
+  @if (resolution() === 'resolved' && revOptions().length > 0) {
+    <div class="rev-actions">
+      <label class="rev">
+        <span class="rev-label">Branch</span>
+        <select (change)="onRevPicked($event)">
+          @for (option of revOptions(); track option) {
+            <option [value]="option" [selected]="option === effectiveRev()">{{ option }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="view-switch" (click)="toFiles()">Files</button>
+    </div>
+  }
+</header>
+
+@switch (resolution()) {
+  @case ('resolving') {
+    <p class="subtle" role="status">Resolving the repository…</p>
+  }
+  @case ('failed') {
+    <app-empty
+      message="The project's repository list could not be loaded, so the name in this address cannot be resolved to a repository."
+    />
+  }
+  @case ('unknown') {
+    <app-empty
+      [message]="
+        'No repository named ' +
+        (scoped().repository || '') +
+        ' in project ' +
+        (scoped().project || '') +
+        '.'
+      "
+    />
+  }
+  @case ('resolved') {
+    @if (notOnHost()) {
+      <app-empty
+        message="The platform knows this repository, but the git host does not hold it yet — it may still be being provisioned."
+      />
+    } @else {
+      <app-async
+        [state]="describe()"
+        loadingLabel="Loading the repository"
+        errorLabel="Could not load the repository"
+        (retry)="retryDescribe()"
+      />
+
+      @if (describe().kind === 'ready') {
+        @if (emptyRepository()) {
+          <app-empty message="Empty repository — nothing has been pushed to it yet." />
+        } @else {
+          <app-async
+            [state]="log()"
+            loadingLabel="Loading the commits"
+            errorLabel="Could not load the commits"
+            (retry)="retryLog()"
+          />
+
+          @if (log().kind === 'ready') {
+            <ol class="commits">
+              @for (commit of commits(); track commit.hash) {
+                <li>
+                  <button type="button" class="commit" (click)="openCommit(commit)">
+                    <code class="mono sha">{{ commit.shortHash }}</code>
+                    <span class="message">{{ commit.message }}</span>
+                    <span class="who">{{ commit.author }}</span>
+                    <span class="when">{{ dateOf(commit) }}</span>
+                    <span class="count">
+                      {{ commit.files.length || '—' }}
+                      {{ commit.files.length === 1 ? 'file' : 'files' }}
+                    </span>
+                  </button>
+                </li>
+              } @empty {
+                <li>
+                  <app-empty
+                    message="No commits here — everything on this branch is already on its parent."
+                  />
+                </li>
+              }
+            </ol>
+          }
+        }
+      }
+    }
+  }
+}

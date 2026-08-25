@@ -1,0 +1,110 @@
+.rev-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.rev {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: flex-end;
+}
+
+.rev-label {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.rev select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.35rem;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.view-switch {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.35rem;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.view-switch:hover {
+  background: #f3f4f6;
+}
+
+/* One row per commit, the whole row a button: the click's target is the commit, not a word in it. */
+.commits {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.35rem;
+  background: #ffffff;
+}
+
+.commits > li + li {
+  border-top: 1px solid #f3f4f6;
+}
+
+.commit {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto auto auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.commit:hover {
+  background: #f9fafb;
+}
+
+.sha {
+  color: #1d4ed8;
+}
+
+.message {
+  overflow: hidden;
+  color: #111827;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who,
+.when,
+.count {
+  color: #6b7280;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.subtle {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 50rem) {
+  .commit {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+  .who,
+  .when,
+  .count {
+    display: none;
+  }
+}
