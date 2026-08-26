@@ -82,15 +82,22 @@
 
           @if (tree().kind === 'ready' && repoId(); as id) {
             <div class="panes">
-              <aside class="side">
-                <app-file-tree
-                  [rows]="rows()"
-                  [selected]="selectedPath()"
-                  label="Repository tree"
-                  (openFile)="openFile($event)"
-                  (toggleDir)="toggleDir($event)"
-                />
-              </aside>
+              <div class="lane">
+                <aside class="side">
+                  <app-file-tree
+                    [rows]="rows()"
+                    [selected]="selectedPath()"
+                    label="Repository tree"
+                    (openFile)="openFile($event)"
+                    (toggleDir)="toggleDir($event)"
+                  />
+                </aside>
+                @if (locLanguages(); as languages) {
+                  <app-loc-panel [languages]="languages" />
+                } @else if (loc().kind === 'error') {
+                  <p class="subtle">Line counts unavailable.</p>
+                }
+              </div>
               <section class="main">
                 <app-file-viewer
                   [repoId]="id"

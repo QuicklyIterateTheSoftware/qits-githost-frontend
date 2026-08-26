@@ -7,6 +7,14 @@
   margin-top: 0.75rem;
 }
 
+/* The left column: the tree's scroller, then the loc summary — a sibling, not a nested scrollee. */
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .side {
   overflow: auto;
   max-height: 34rem;

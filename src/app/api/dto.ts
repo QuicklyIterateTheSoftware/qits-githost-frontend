@@ -27,7 +27,7 @@ export interface RepositoriesResponse {
 }
 
 /**
- * The browse endpoints' shapes — `GET /githost/api/repositories/{id}[/tree|/file]`. Unlike the
+ * The browse endpoints' shapes — `GET /githost/api/repositories/{id}[/tree|/file|/loc]`. Unlike the
  * catalogue record above, these are closed contracts: the Code page depends on every field.
  */
 export interface RepoDescribeDto {
@@ -45,6 +45,24 @@ export interface TreeListingDto {
   readonly commitSha: string;
   /** Every blob's slash-separated path. Directories are implied and derived client-side. */
   readonly paths: readonly string[];
+}
+
+/** One language's line counts at the commit, split the way the Code page draws them. */
+export interface LanguageLocDto {
+  readonly language: string;
+  readonly mainLines: number;
+  readonly testLines: number;
+}
+
+/**
+ * The lines-of-code summary at one commit (`GET …/loc`). A pure function of `commitSha` — the
+ * service memoizes it under that key, which is why no rev is echoed back: every spelling of the
+ * same commit gets the same bytes.
+ */
+export interface LocSummaryDto {
+  readonly commitSha: string;
+  /** Sorted largest total first by the service; rendered as received. */
+  readonly languages: readonly LanguageLocDto[];
 }
 
 export interface FileContentDto {

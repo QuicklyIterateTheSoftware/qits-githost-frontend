@@ -63,6 +63,16 @@ describe('CodePage', () => {
       .flush({ id: REPO_ID, defaultBranch: 'main', branches });
   }
 
+  /** The loc summary rides beside every tree read; a spec that spells a rev must flush it too. */
+  function flushLoc(
+    rev: string,
+    languages: readonly { language: string; mainLines: number; testLines: number }[] = [],
+  ): void {
+    http
+      .expectOne((request) => request.url === `${API}/loc` && request.params.get('rev') === rev)
+      .flush({ commitSha: 'a'.repeat(40), languages });
+  }
+
   it('redirects the bare address to branches/<default> and draws that tree', async () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci');
     await settle();
@@ -73,6 +83,7 @@ describe('CodePage', () => {
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
       .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md', 'src/app/main.ts'] });
+    flushLoc('main');
     await settle();
 
     expect(text()).toContain('qits-ci');
@@ -97,6 +108,7 @@ describe('CodePage', () => {
           request.url === `${API}/tree` && request.params.get('rev') === 'feature/slashy',
       )
       .flush({ rev: 'feature/slashy', commitSha: 'b'.repeat(40), paths: ['README.md'] });
+    flushLoc('feature/slashy');
     await settle();
 
     expect(text()).toContain('feature/slashy');
@@ -116,6 +128,7 @@ describe('CodePage', () => {
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
       .flush({ rev: 'main', commitSha: 'c'.repeat(40), paths: ['src/app/main.ts'] });
+    flushLoc('main');
     await settle();
     http
       .expectOne(
@@ -130,6 +143,65 @@ describe('CodePage', () => {
     // …and the viewer shows the content with the anchored line painted.
     expect(text()).toContain('two');
     expect(page().querySelector('.line.anchored')?.textContent).toContain('two');
+  });
+
+  it('draws per-language line counts split test and main below the tree', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main', [
+      { language: 'Java', mainLines: 50, testLines: 500 },
+      { language: 'TypeScript', mainLines: 1234, testLines: 0 },
+    ]);
+    await settle();
+
+    const headers = Array.from(page().querySelectorAll('app-loc-panel .lang')).map(
+      (header) => header.textContent?.trim(),
+    );
+    expect(headers).toEqual(['Java', 'TypeScript']);
+    const panel = page().querySelector('app-loc-panel')?.textContent ?? '';
+    expect(panel).toContain('test');
+    expect(panel).toContain('500 loc');
+    expect(panel).toContain('main');
+    expect(panel).toContain('50 loc');
+    expect(panel).toContain('1,234 loc');
+  });
+
+  it('says line counts are unavailable when the loc read fails, tree intact', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    http
+      .expectOne((request) => request.url === `${API}/loc` && request.params.get('rev') === 'main')
+      .flush('boom', { status: 500, statusText: 'Server Error' });
+    await settle();
+
+    expect(text()).toContain('README.md');
+    expect(text()).toContain('Line counts unavailable.');
+    expect(page().querySelector('app-loc-panel')).toBeNull();
+  });
+
+  it('hides the loc panel entirely when no language is recognised', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['LICENSE'] });
+    flushLoc('main', []);
+    await settle();
+
+    expect(page().querySelector('app-loc-panel')).toBeNull();
+    expect(text()).not.toContain('Line counts unavailable.');
   });
 
   it('says an empty repository is empty instead of asking for a tree', async () => {
@@ -149,6 +221,9 @@ describe('CodePage', () => {
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'gone')
+      .flush({ error: 'no-such-rev' }, { status: 404, statusText: 'Not Found' });
+    http
+      .expectOne((request) => request.url === `${API}/loc` && request.params.get('rev') === 'gone')
       .flush({ error: 'no-such-rev' }, { status: 404, statusText: 'Not Found' });
     await settle();
 
