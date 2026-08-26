@@ -2,10 +2,10 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { QITS_API_BASE } from './api-base';
-import type { FileContentDto, RepoDescribeDto, TreeListingDto } from './dto';
+import type { FileContentDto, LocSummaryDto, RepoDescribeDto, TreeListingDto } from './dto';
 
 /**
- * The browse reads behind the Code page — `GET /githost/api/repositories/{id}[/tree|/file]`.
+ * The browse reads behind the Code page — `GET /githost/api/repositories/{id}[/tree|/file|/loc]`.
  *
  * Addressed by the storage UUID, which the page resolves from the URL's repository name via
  * `QITS_SCOPE.repositoryId()`. The rev travels as a query parameter, so a branch name with slashes
@@ -32,6 +32,15 @@ export class BrowseApi {
   async tree(repoId: string, rev?: string): Promise<TreeListingDto> {
     return firstValueFrom(
       this.http.get<TreeListingDto>(`${this.base}/githost/api/repositories/${repoId}/tree`, {
+        params: rev ? { rev } : {},
+      }),
+    );
+  }
+
+  /** The rev's lines-of-code summary. No rev asks for the default branch, like the tree. */
+  async loc(repoId: string, rev?: string): Promise<LocSummaryDto> {
+    return firstValueFrom(
+      this.http.get<LocSummaryDto>(`${this.base}/githost/api/repositories/${repoId}/loc`, {
         params: rev ? { rev } : {},
       }),
     );

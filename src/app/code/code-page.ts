@@ -11,12 +11,13 @@ import {
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { QITS_REPOSITORIES, QITS_SCOPE } from '@qits/ui-components';
 import { BrowseApi, browseErrorCode } from '../api/browse-api';
-import type { RepoDescribeDto, TreeListingDto } from '../api/dto';
+import type { LocSummaryDto, RepoDescribeDto, TreeListingDto } from '../api/dto';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { LOADING, failed, ready, type Loadable } from '../ui/loadable';
 import { FileTree } from './file-tree';
 import { FileViewer } from './file-viewer';
+import { LocPanel } from './loc-panel';
 import { parseRange } from './line-range';
 import { ancestorDirs, buildTree, flatten, type TreeRow } from './tree-model';
 
@@ -35,8 +36,9 @@ import { ancestorDirs, buildTree, flatten, type TreeRow } from './tree-model';
  *
  * ## What a load costs
  *
- * `1 + 1 + 1`: the describe (branches and default branch), the whole tree at the rev in one eager
- * read, and one read per opened file. Directories cost nothing — they are derived from the paths.
+ * `1 + 1 + 1 + 1`: the describe (branches and default branch), the whole tree at the rev in one
+ * eager read, the rev's lines-of-code summary (memoized server-side per commit), and one read per
+ * opened file. Directories cost nothing — they are derived from the paths.
  *
  * ## Who resolves the name
  *
@@ -48,7 +50,7 @@ import { ancestorDirs, buildTree, flatten, type TreeRow } from './tree-model';
 @Component({
   selector: 'app-code-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty, FileTree, FileViewer],
+  imports: [Async, Empty, FileTree, FileViewer, LocPanel],
   templateUrl: './code-page.html',
   styleUrls: ['../ui/page.css', './code-page.css'],
 })
@@ -106,12 +108,14 @@ export class CodePage {
 
   protected readonly describe = signal<Loadable<RepoDescribeDto>>(LOADING);
   protected readonly tree = signal<Loadable<TreeListingDto>>(LOADING);
+  protected readonly loc = signal<Loadable<LocSummaryDto>>(LOADING);
 
   /** Directory paths the user has opened. Reset when a different tree arrives. */
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
 
   private describedFor: string | null = null;
   private treeFor: string | null = null;
+  private locFor: string | null = null;
 
   constructor() {
     const subscription = this.router.events.subscribe((event) => {
@@ -174,6 +178,24 @@ export class CodePage {
       });
     });
 
+    // The loc summary rides beside the tree — same gate, same key, its own request — so a slow
+    // count never holds the tree and a failed one degrades to one quiet line under it.
+    effect(() => {
+      const repoId = this.repoId();
+      const described = this.describe();
+      const rev = this.revTail();
+      untracked(() => {
+        if (!repoId || described.kind !== 'ready' || rev === '') {
+          return;
+        }
+        const key = `${repoId}@${rev}`;
+        if (this.locFor !== key) {
+          this.locFor = key;
+          void this.loadLoc(repoId, rev);
+        }
+      });
+    });
+
     // A deep-linked file arrives with its ancestors closed; open them. Merging rather than
     // replacing keeps whatever the user had opened besides.
     effect(() => {
@@ -199,6 +221,14 @@ export class CodePage {
     }
     const described = this.describe();
     return this.revTail() || (described.kind === 'ready' ? (described.value.defaultBranch ?? '') : '');
+  });
+
+  /** The languages to draw, or null — one check for "ready and not empty", template-narrowable. */
+  protected readonly locLanguages = computed(() => {
+    const state = this.loc();
+    return state.kind === 'ready' && state.value.languages.length > 0
+      ? state.value.languages
+      : null;
   });
 
   protected readonly rows = computed<readonly TreeRow[]>(() => {
@@ -264,6 +294,15 @@ export class CodePage {
     } catch (error) {
       this.treeErrorSignal.set(browseErrorCode(error));
       this.tree.set(failed(error));
+    }
+  }
+
+  protected async loadLoc(repoId: string, rev: string): Promise<void> {
+    this.loc.set(LOADING);
+    try {
+      this.loc.set(ready(await this.api.loc(repoId, rev || undefined)));
+    } catch (error) {
+      this.loc.set(failed(error));
     }
   }
 
