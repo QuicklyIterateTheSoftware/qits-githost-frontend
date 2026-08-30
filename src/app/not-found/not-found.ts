@@ -22,8 +22,8 @@ import { RouterLink } from '@angular/router';
     <h1>No such page here</h1>
     <p>
       This is the git host. It shows a repository's contents at
-      <code>/&lt;project&gt;/&lt;category&gt;/&lt;repository&gt;</code> — the Code pages — and its
-      own storage audit at the root, and nothing else.
+      <code>/&lt;project&gt;/&lt;group&gt;/&lt;repository&gt;</code> — the Code pages — and its own
+      storage audit at the root, and nothing else.
     </p>
     <p><a routerLink="/">Back to the orphaned repositories</a></p>
   `,

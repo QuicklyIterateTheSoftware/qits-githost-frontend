@@ -16,6 +16,7 @@ import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { LOADING, failed, ready, type Loadable } from '../ui/loadable';
 import { DiffViewer } from './diff-viewer';
+import { repositoryAddress } from './repository-address';
 
 /**
  * One commit — the same two-pane view as the tree, scoped to what the commit changed.
@@ -146,15 +147,15 @@ export class CommitPage {
 
   /** Back to the log the reader came from — `?branch=`, or the default branch's without it. */
   protected toCommits(): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
     const branch = this.fromBranch();
     void this.router.navigate([
       '/',
       project,
-      category,
+      group,
       repository,
       'commits',
       ...(branch ? branch.split('/') : []),
@@ -163,11 +164,11 @@ export class CommitPage {
 
   /** The whole tree as it stood at this commit — the tree view takes a sha as its rev. */
   protected browseTree(): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
-    void this.router.navigate(['/', project, category, repository, 'branches', this.sha()]);
+    void this.router.navigate(['/', project, group, repository, 'branches', this.sha()]);
   }
 
   /** `M` on the row; the title spells it out. */

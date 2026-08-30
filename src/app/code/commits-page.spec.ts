@@ -47,7 +47,9 @@ describe('CommitsPage', () => {
         provideHttpClientTesting(),
         provideQitsNavigationLinks([{ label: 'Git host', href: '/githost/' }]),
         provideQitsProjectList([{ id: 'p-1', slug: 'qits', name: 'qits' }]),
-        provideQitsRepositoryList([{ id: REPO_ID, name: 'qits-ci', category: 'services' }]),
+        provideQitsRepositoryList([
+          { id: REPO_ID, name: 'qits-ci', component: 'qits-ci', category: 'services' },
+        ]),
         provideQitsScope('repository'),
       ],
     });
@@ -133,6 +135,52 @@ describe('CommitsPage', () => {
     http
       .expectOne(`${PROJECTS}/commits/${'a'.repeat(40)}/changes`)
       .flush({ commit: 'a'.repeat(40), parent: null, files: [] });
+  });
+
+  /** The same log at the component-form address the platform's navigation links. */
+  it('redirects the bare COMPONENT-form log to commits/<default> and opens a commit there', async () => {
+    harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/commits');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/commits/main');
+    http
+      .expectOne((request) => request.url === `${PROJECTS}/commits`)
+      .flush({ branch: 'main', parent: null, commits: [commit('a', 'first')] });
+    await settle();
+
+    expect(text()).toContain('first');
+
+    (page().querySelector('.commit') as HTMLButtonElement).click();
+    await settle();
+
+    // The commit link keeps the component segment rather than falling back to the archetype.
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/commit/' + 'a'.repeat(40));
+    http
+      .expectOne(`${PROJECTS}/commits/${'a'.repeat(40)}/changes`)
+      .flush({ commit: 'a'.repeat(40), parent: null, files: [] });
+  });
+
+  it('keeps the component segment when the branch dropdown navigates', async () => {
+    harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/commits/main');
+    await settle();
+    flushDescribe(['main', 'topic']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${PROJECTS}/commits`)
+      .flush({ branch: 'main', parent: null, commits: [] });
+    await settle();
+
+    const select = page().querySelector('select') as HTMLSelectElement;
+    select.value = 'topic';
+    select.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/commits/topic');
+    http
+      .expectOne((request) => request.url === `${PROJECTS}/commits`)
+      .flush({ branch: 'topic', parent: 'main', commits: [] });
   });
 
   it('says a fully merged branch has nothing to show', async () => {

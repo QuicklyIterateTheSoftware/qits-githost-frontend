@@ -19,6 +19,9 @@ const API = `/githost/api/repositories/${REPO_ID}`;
  * The Code page through the real route table: the URL is the state, so the specs drive URLs and
  * read the DOM. The slug→UUID join runs against literal project/repository lists — the same
  * providers the chrome's own specs use — so the page's requests are the only HTTP here.
+ *
+ * The repository carries a component, so both middle spellings are addressable: `/qits/services/…`
+ * is the archetype form and `/qits/qits-ci/…` the component form the platform's navigation links.
  */
 describe('CodePage', () => {
   let http: HttpTestingController;
@@ -33,7 +36,9 @@ describe('CodePage', () => {
         provideHttpClientTesting(),
         provideQitsNavigationLinks([{ label: 'Git host', href: '/githost/' }]),
         provideQitsProjectList([{ id: 'p-1', slug: 'qits', name: 'qits' }]),
-        provideQitsRepositoryList([{ id: REPO_ID, name: 'qits-ci', category: 'services' }]),
+        provideQitsRepositoryList([
+          { id: REPO_ID, name: 'qits-ci', component: 'qits-ci', category: 'services' },
+        ]),
         provideQitsScope('repository'),
       ],
     });
@@ -249,5 +254,76 @@ describe('CodePage', () => {
 
     expect(text()).toContain('No repository named no-such-repo');
     http.verify();
+  });
+
+  /**
+   * The component form of the same address. The chrome states the middle segment as `group` and
+   * leaves `category` unset for it, so a page that read `category` never redirected here — the
+   * live symptom was an endless spinner on every component-form Code page.
+   */
+  it('redirects the bare COMPONENT-form address to branches/<default> and draws that tree', async () => {
+    harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/branches/main');
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+
+    expect(text()).toContain('README.md');
+    expect(text()).not.toContain('Resolving the repository');
+  });
+
+  it('keeps the component segment when the branch dropdown navigates', async () => {
+    harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main', 'topic']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+
+    const select = page().querySelector('select') as HTMLSelectElement;
+    select.value = 'topic';
+    select.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/branches/topic');
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'topic')
+      .flush({ rev: 'topic', commitSha: 'b'.repeat(40), paths: ['TOPIC.md'] });
+    flushLoc('topic');
+    await settle();
+
+    expect(text()).toContain('TOPIC.md');
+  });
+
+  it('switches to the commits view without losing the component segment', async () => {
+    harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+
+    (page().querySelector('.view-switch') as HTMLButtonElement).click();
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/commits/main');
+    // The commits page the navigation landed on makes its own reads; drain them.
+    http.expectOne(API).flush({ id: REPO_ID, defaultBranch: 'main', branches: ['main'] });
+    await settle();
+    http
+      .expectOne((request) => request.url === `/projects/api/repositories/${REPO_ID}/commits`)
+      .flush({ branch: 'main', parent: null, commits: [] });
   });
 });
