@@ -19,6 +19,7 @@ import { FileTree } from './file-tree';
 import { FileViewer } from './file-viewer';
 import { LocPanel } from './loc-panel';
 import { parseRange } from './line-range';
+import { repositoryAddress } from './repository-address';
 import { ancestorDirs, buildTree, flatten, type TreeRow } from './tree-model';
 
 /**
@@ -27,7 +28,7 @@ import { ancestorDirs, buildTree, flatten, type TreeRow } from './tree-model';
  *
  * ## The address is the state
  *
- * `/<slug>/<category>/<repo>/<rev…>?path=…&lines=…`. The rev is the URL tail — every segment past
+ * `/<slug>/<group>/<repo>/<rev…>?path=…&lines=…`. The rev is the URL tail — every segment past
  * the repository, so a `feature/x` branch keeps its slash — and no tail means the default branch,
  * which the service resolves so this page never has to know it before asking. The open file and
  * the painted range are query parameters, read from the URL and never off a click, so a click, a
@@ -148,12 +149,12 @@ export class CodePage {
           return;
         }
         const branch = described.value.defaultBranch;
-        const { project, category, repository } = this.scoped();
-        if (!branch || !project || !category || !repository) {
+        const { project, group, repository } = repositoryAddress(this.scoped());
+        if (!branch || !project || !group || !repository) {
           return;
         }
         void this.router.navigate(
-          ['/', project, category, repository, 'branches', ...branch.split('/')],
+          ['/', project, group, repository, 'branches', ...branch.split('/')],
           { replaceUrl: true, queryParamsHandling: 'preserve' },
         );
       });
@@ -322,24 +323,24 @@ export class CodePage {
 
   /** A pick in the branch dropdown navigates: the rev is a place, so it goes in the path. */
   protected switchRev(rev: string): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
-    void this.router.navigate(['/', project, category, repository, 'branches', ...rev.split('/')]);
+    void this.router.navigate(['/', project, group, repository, 'branches', ...rev.split('/')]);
   }
 
   /** To the same rev's log — the orthogonal view of the branch. */
   protected toCommits(): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
     const rev = this.effectiveRev();
     void this.router.navigate([
       '/',
       project,
-      category,
+      group,
       repository,
       'commits',
       ...(rev ? rev.split('/') : []),
@@ -348,9 +349,9 @@ export class CodePage {
 
   /** To the default branch — the way back from a rev that stopped existing. */
   protected toDefaultBranch(): void {
-    const { project, category, repository } = this.scoped();
-    if (project && category && repository) {
-      void this.router.navigate(['/', project, category, repository]);
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (project && group && repository) {
+      void this.router.navigate(['/', project, group, repository]);
     }
   }
 

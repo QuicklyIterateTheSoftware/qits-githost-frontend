@@ -16,6 +16,7 @@ import type { CommitDto, CommitLogDto, RepoDescribeDto } from '../api/dto';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { LOADING, failed, ready, type Loadable } from '../ui/loadable';
+import { repositoryAddress } from './repository-address';
 
 /**
  * The branch's log — the orthogonal view beside the tree at `…/<repo>/branches/<ref>`.
@@ -120,12 +121,12 @@ export class CommitsPage {
           return;
         }
         const branch = described.value.defaultBranch;
-        const { project, category, repository } = this.scoped();
-        if (!branch || !project || !category || !repository) {
+        const { project, group, repository } = repositoryAddress(this.scoped());
+        if (!branch || !project || !group || !repository) {
           return;
         }
         void this.router.navigate(
-          ['/', project, category, repository, 'commits', ...branch.split('/')],
+          ['/', project, group, repository, 'commits', ...branch.split('/')],
           { replaceUrl: true, queryParamsHandling: 'preserve' },
         );
       });
@@ -228,24 +229,24 @@ export class CommitsPage {
   }
 
   protected switchRev(rev: string): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
-    void this.router.navigate(['/', project, category, repository, 'commits', ...rev.split('/')]);
+    void this.router.navigate(['/', project, group, repository, 'commits', ...rev.split('/')]);
   }
 
   /** Back to the same rev's tree — the other half of the pair. */
   protected toFiles(): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
     const rev = this.effectiveRev();
     void this.router.navigate([
       '/',
       project,
-      category,
+      group,
       repository,
       'branches',
       ...(rev ? rev.split('/') : []),
@@ -253,11 +254,11 @@ export class CommitsPage {
   }
 
   protected openCommit(commit: CommitDto): void {
-    const { project, category, repository } = this.scoped();
-    if (!project || !category || !repository) {
+    const { project, group, repository } = repositoryAddress(this.scoped());
+    if (!project || !group || !repository) {
       return;
     }
-    void this.router.navigate(['/', project, category, repository, 'commit', commit.hash], {
+    void this.router.navigate(['/', project, group, repository, 'commit', commit.hash], {
       queryParams: { branch: this.effectiveRev() || null },
     });
   }

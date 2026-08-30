@@ -33,7 +33,9 @@ describe('CommitPage', () => {
         provideHttpClientTesting(),
         provideQitsNavigationLinks([{ label: 'Git host', href: '/githost/' }]),
         provideQitsProjectList([{ id: 'p-1', slug: 'qits', name: 'qits' }]),
-        provideQitsRepositoryList([{ id: REPO_ID, name: 'qits-ci', category: 'services' }]),
+        provideQitsRepositoryList([
+          { id: REPO_ID, name: 'qits-ci', component: 'qits-ci', category: 'services' },
+        ]),
         provideQitsScope('repository'),
       ],
     });
@@ -143,5 +145,31 @@ describe('CommitPage', () => {
     http
       .expectOne((request) => request.url === `${PROJECTS}/commits`)
       .flush({ branch: 'feature/slashy', parent: 'main', commits: [] });
+  });
+
+  /** Both ways out of a commit keep the middle segment they arrived on — here the component. */
+  it('browses the tree at the commit without losing the component segment', async () => {
+    harness = await RouterTestingHarness.create(`/qits/qits-ci/qits-ci/commit/${SHA}`);
+    await settle();
+    flushChanges();
+    await settle();
+
+    expect(text()).toContain('2 files changed against eeeeeeeeee.');
+
+    const buttons = [...page().querySelectorAll('.view-switch')] as HTMLButtonElement[];
+    buttons.find((button) => button.textContent?.includes('Browse this commit'))?.click();
+    await settle();
+    expect(TestBed.inject(Router).url).toContain(`/qits/qits-ci/qits-ci/branches/${SHA}`);
+    // The tree page the navigation landed on makes its own reads; drain them.
+    http
+      .expectOne(`/githost/api/repositories/${REPO_ID}`)
+      .flush({ id: REPO_ID, defaultBranch: 'main', branches: ['main'] });
+    await settle();
+    http
+      .expectOne((request) => request.url === `/githost/api/repositories/${REPO_ID}/tree`)
+      .flush({ rev: SHA, commitSha: SHA, paths: ['README.md'] });
+    http
+      .expectOne((request) => request.url === `/githost/api/repositories/${REPO_ID}/loc`)
+      .flush({ commitSha: SHA, languages: [] });
   });
 });

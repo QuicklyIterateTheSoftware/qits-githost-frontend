@@ -28,7 +28,7 @@ import { routes } from './app.routes';
  *   one of them — above the links, because it scopes them. It also installs the repositories of
  *   whatever project is in scope, which the sidebar draws.
  * - `provideQitsScope('repository')` says how deep this application's own addresses go: to a
- *   repository. The Code pages live at `/<slug>/<category>/<repo>/…`, which is the address the
+ *   repository. The Code pages live at `/<slug>/<group>/<repo>/…`, which is the address the
  *   platform's per-repository `Code` navigation entries link to — so picking a project navigates
  *   in-app to `/<slug>` rather than leaving for qits-projects, and `QITS_SCOPE.repositoryId()`
  *   resolves the repository name in the address to the storage UUID this host keys by. The scope
