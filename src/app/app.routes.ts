@@ -14,7 +14,7 @@ import { OrphanedRepositoriesPage } from './repositories/orphaned-repositories-p
  *
  * **The address starts at the root**, because this application is served at `/` on its own host.
  * The root is the host's own view — the orphaned repositories, the storage facts nothing else can
- * state — and under `/<slug>/<category>/<repo>/` live the repository views, in the grammar every
+ * state — and under `/<slug>/<group>/<repo>/` live the repository views, in the grammar every
  * code host taught its readers:
  *
  * - `…/<repo>` and `…/<repo>/branches/<ref…>` — the tree at a rev (the Code page). The bare form
@@ -62,12 +62,36 @@ const REPOSITORY: Routes = [
 ];
 
 /**
- * Whether the address is really `/<slug>/<category>/<repo>/…` and not a page of this app's own.
- * The second segment is the discriminator because its vocabulary is closed — copied verbatim from
- * the sibling SPAs, where the reasoning lives (see spa-artifacts' routes).
+ * This application's own second segments, derived from its own routes so a page added to `OWN` can
+ * never be shadowed by the group form. Empty here — this host serves one page of its own and it is
+ * at the root — and derived rather than written out, because that is what keeps it empty honestly.
  */
-export const categoryIsKnown: CanMatchFn = (_route, segments: UrlSegment[]) =>
-  QITS_CATEGORIES.includes(segments[1]?.path as QitsCategory);
+const OWN_SEGMENTS: ReadonlySet<string> = new Set(
+  OWN.map((route) => (route.path ?? '').split('/')[0]).filter((segment) => segment.length > 0),
+);
+
+/**
+ * Whether the address is really `/<slug>/<group>/<repo>/…` and not a page of this app's own.
+ *
+ * The middle segment is the repository's **component** — `qits-githost` — where the platform gives
+ * it one, and its archetype category where it does not. Component names are an OPEN set that only
+ * the platform knows, so nothing compiled in can prove one and the closed-set test this guard used
+ * to make would 404 every component address. The test runs the other way round now: a second
+ * segment is a group unless it spells a page of this application's own.
+ *
+ * The chrome reads the same address the same way — `parseScope` proves a component once the
+ * repository list answers — so a third segment naming no repository leaves the page below unscoped,
+ * and it says so itself rather than being turned away here.
+ */
+export const isRepositoryAddress: CanMatchFn = (_route, segments: UrlSegment[]) => {
+  const project = segments[0]?.path;
+  const group = segments[1]?.path;
+  if (!project || !group) return false;
+  // A project is never a category and never a page of this app's own, which is the rule the chrome
+  // states from the other side: qits-projects refuses a slug that spells either.
+  if (OWN_SEGMENTS.has(project) || QITS_CATEGORIES.includes(project as QitsCategory)) return false;
+  return !OWN_SEGMENTS.has(group);
+};
 
 /**
  * The `:project` form exists because the chrome's project picker navigates to `/<slug>` — without
@@ -84,8 +108,8 @@ export const routes: Routes = [
     children: [
       ...OWN,
       {
-        path: ':project/:category/:repository',
-        canMatch: [categoryIsKnown],
+        path: ':project/:group/:repository',
+        canMatch: [isRepositoryAddress],
         children: REPOSITORY,
       },
       { path: ':project', children: OWN },
