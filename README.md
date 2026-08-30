@@ -1,4 +1,4 @@
-# qits-spa-githost
+# qits-githost-frontend
 
 The git host's browser plane: the Code pages — a repository's committed contents, read straight
 from the bare storage — and the storage audit. Served by qits-githost itself at `/` on
@@ -70,7 +70,8 @@ client must stay on an Angular the platform node can run.
 
 ## How it ships
 
-This repository builds no image. qits-githost carries it as a git submodule at
+This repository builds no image. qits-githost-service carries it as a git submodule at
 `service/src/main/webui`, and Quinoa builds `dist/qits-spa-githost/browser` into the service image
 during `mvn package`. The pipeline here (`.config/qits/ci-post-receive.yml`) keeps `main` green —
-install, lint, test, build — and qits-githost's own pipeline is where the bundle becomes deployable.
+install, lint, test, build — and qits-githost-service's own pipeline is where the bundle becomes
+deployable.
