@@ -72,6 +72,7 @@ client must stay on an Angular the platform node can run.
 
 This repository builds no image. qits-githost-service carries it as a git submodule at
 `service/src/main/webui`, and Quinoa builds `dist/qits-spa-githost/browser` into the service image
-during `mvn package`. The pipeline here (`.config/qits/ci-post-receive.yml`) keeps `main` green —
-install, lint, test, build — and qits-githost-service's own pipeline is where the bundle becomes
-deployable.
+during `mvn package`. The one pipeline here (`.config/qits/ci-event-release-request.yml`) runs
+install, lint, test, build for a release request, on the folded `release/<id>` branch, and its
+verdict gates the release — nothing builds on a push. qits-githost-service's own pipeline is where
+the bundle becomes deployable.
