@@ -1,6 +1,6 @@
 {
   "name": "qits-spa-githost",
-  "version": "2026.904.203849",
+  "version": "2026.905.25714",
   "private": true,
   "description": "The git host's frontend: an Angular application that lists the repositories qits-githost serves. It ships no image — qits-githost serves it via Quinoa at the root of its own host.",
   "license": "MIT",
