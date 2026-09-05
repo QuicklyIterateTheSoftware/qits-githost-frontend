@@ -11,7 +11,7 @@ import {
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { QITS_REPOSITORIES, QITS_SCOPE } from '@qits/ui-components';
 import { BrowseApi, browseErrorCode } from '../api/browse-api';
-import type { LocSummaryDto, RepoDescribeDto, TreeListingDto } from '../api/dto';
+import type { LocSummaryDto, RepoDescribeDto, RepoTagsDto, TreeListingDto } from '../api/dto';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { LOADING, failed, ready, type Loadable } from '../ui/loadable';
@@ -22,24 +22,52 @@ import { parseRange } from './line-range';
 import { repositoryAddress } from './repository-address';
 import { ancestorDirs, buildTree, flatten, type TreeRow } from './tree-model';
 
+/** Which kind of ref the address names; `default` is the bare form, which redirects to a branch. */
+type RevKind = 'branch' | 'tag' | 'default';
+
+/** How a tag is asked for: the one spelling the service cannot resolve to anything else. */
+const TAG_PREFIX = 'refs/tags/';
+
+/** One entry in the rev dropdown: what the reader reads, and where a pick goes. */
+interface RevOption {
+  readonly label: string;
+  /** The URL form — `branches/<name>` or `tags/<name>` — so a pick needs no second lookup. */
+  readonly value: string;
+}
+
+/** A branch reads as its bare name and is addressed under `branches/`. */
+function branchOption(branch: string): RevOption {
+  return { label: branch, value: `branches/${branch}` };
+}
+
+/** A tag likewise, under `tags/` — the kind is what keeps the two apart when they share a name. */
+function tagOption(tag: string): RevOption {
+  return { label: tag, value: `tags/${tag}` };
+}
+
 /**
  * The Code page: one repository's committed contents, read from the bare storage — the page the
  * platform's per-repository `Code` navigation entries land on.
  *
  * ## The address is the state
  *
- * `/<slug>/<group>/<repo>/<rev…>?path=…&lines=…`. The rev is the URL tail — every segment past
- * the repository, so a `feature/x` branch keeps its slash — and no tail means the default branch,
- * which the service resolves so this page never has to know it before asking. The open file and
- * the painted range are query parameters, read from the URL and never off a click, so a click, a
- * paste, a reload and the back button are one code path — the grammar the workspaces file browser
- * settled and this page repeats.
+ * `/<slug>/<group>/<repo>/<branches|tags>/<ref…>?path=…&lines=…`. The rev is the URL tail — every
+ * segment past the kind, so a `feature/x` branch keeps its slash — and no tail at all means the
+ * default branch, which the service resolves so this page never has to know it before asking. The
+ * open file and the painted range are query parameters, read from the URL and never off a click,
+ * so a click, a paste, a reload and the back button are one code path — the grammar the workspaces
+ * file browser settled and this page repeats.
+ *
+ * **The kind is spelled because a tag may share a name with a branch.** A bare `2026.903.113443`
+ * would be whatever git resolved first; `tags/2026.903.113443` asks for `refs/tags/…` and can only
+ * be the tag. Branches keep their bare spelling — that ambiguity was never theirs to create, and
+ * respelling them would break every link already written.
  *
  * ## What a load costs
  *
- * `1 + 1 + 1 + 1`: the describe (branches and default branch), the whole tree at the rev in one
- * eager read, the rev's lines-of-code summary (memoized server-side per commit), and one read per
- * opened file. Directories cost nothing — they are derived from the paths.
+ * `1 + 1 + 1 + 1 + 1`: the describe (branches and default branch), the tag list, the whole tree at
+ * the rev in one eager read, the rev's lines-of-code summary (memoized server-side per commit), and
+ * one read per opened file. Directories cost nothing — they are derived from the paths.
  *
  * ## Who resolves the name
  *
@@ -84,19 +112,40 @@ export class CodePage {
   private readonly parsedUrl = computed(() => this.router.parseUrl(this.url()));
 
   /**
-   * The rev the address states: every segment past `…/<repo>/branches`, slashes intact. The bare
-   * repository address has no `branches` segment and means the default branch — that spelling is
-   * what the platform's `Code` navigation entries link to.
+   * The ref the address states, and which kind of ref it is: every segment past
+   * `…/<repo>/<branches|tags>`, slashes intact. The bare repository address spells neither kind and
+   * means the default branch — that spelling is what the platform's `Code` navigation entries link
+   * to, and the redirect below turns it into the branch form.
    */
-  protected readonly revTail = computed(() => {
+  protected readonly revRef = computed<{ kind: RevKind; name: string }>(() => {
     const segments = this.parsedUrl().root.children['primary']?.segments ?? [];
-    if (segments[3]?.path !== 'branches') {
+    const head = segments[3]?.path;
+    if (head !== 'branches' && head !== 'tags') {
+      return { kind: 'default', name: '' };
+    }
+    return {
+      kind: head === 'tags' ? 'tag' : 'branch',
+      name: segments
+        .slice(4)
+        .map((segment) => segment.path)
+        .join('/'),
+    };
+  });
+
+  /** The ref's own name, unqualified — what the reader sees and what a load keys on. */
+  protected readonly revTail = computed(() => this.revRef().name);
+
+  /**
+   * What the tree and the loc reads actually ASK for. A tag is spelled as its full ref, so a tag
+   * that shares a name with a branch resolves to the tag and not to whatever git found first; a
+   * branch keeps its bare name, which is what the service has always been asked for.
+   */
+  private readonly requestedRev = computed(() => {
+    const { kind, name } = this.revRef();
+    if (name === '') {
       return '';
     }
-    return segments
-      .slice(4)
-      .map((segment) => segment.path)
-      .join('/');
+    return kind === 'tag' ? `${TAG_PREFIX}${name}` : name;
   });
 
   protected readonly selectedPath = computed(
@@ -108,6 +157,7 @@ export class CodePage {
   );
 
   protected readonly describe = signal<Loadable<RepoDescribeDto>>(LOADING);
+  protected readonly tags = signal<Loadable<RepoTagsDto>>(LOADING);
   protected readonly tree = signal<Loadable<TreeListingDto>>(LOADING);
   protected readonly loc = signal<Loadable<LocSummaryDto>>(LOADING);
 
@@ -115,6 +165,7 @@ export class CodePage {
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
 
   private describedFor: string | null = null;
+  private taggedFor: string | null = null;
   private treeFor: string | null = null;
   private locFor: string | null = null;
 
@@ -126,12 +177,22 @@ export class CodePage {
     });
     inject(DestroyRef).onDestroy(() => subscription.unsubscribe());
 
+    // The tags ride beside the describe: same trigger, their own request, and a failure of theirs
+    // is not a failure of the page — the dropdown then offers branches alone, the way it did before
+    // there were tags in it.
     effect(() => {
       const repoId = this.repoId();
       untracked(() => {
-        if (repoId && this.describedFor !== repoId) {
+        if (!repoId) {
+          return;
+        }
+        if (this.describedFor !== repoId) {
           this.describedFor = repoId;
           void this.loadDescribe(repoId);
+        }
+        if (this.taggedFor !== repoId) {
+          this.taggedFor = repoId;
+          void this.loadTags(repoId);
         }
       });
     });
@@ -166,7 +227,7 @@ export class CodePage {
     effect(() => {
       const repoId = this.repoId();
       const described = this.describe();
-      const rev = this.revTail();
+      const rev = this.requestedRev();
       untracked(() => {
         if (!repoId || described.kind !== 'ready' || rev === '') {
           return;
@@ -184,7 +245,7 @@ export class CodePage {
     effect(() => {
       const repoId = this.repoId();
       const described = this.describe();
-      const rev = this.revTail();
+      const rev = this.requestedRev();
       untracked(() => {
         if (!repoId || described.kind !== 'ready' || rev === '') {
           return;
@@ -214,11 +275,17 @@ export class CodePage {
     });
   }
 
-  /** The rev everything below the header is actually reading. */
+  /**
+   * The rev everything below the header is actually reading, spelled the way a reader spells it:
+   * the tree echoes back what was asked for, which for a tag is the full `refs/tags/…` ref, and
+   * nothing on screen — the header line, the commits jump, the dropdown's selection — wants that
+   * prefix.
+   */
   protected readonly effectiveRev = computed(() => {
     const state = this.tree();
     if (state.kind === 'ready') {
-      return state.value.rev;
+      const rev = state.value.rev;
+      return rev.startsWith(TAG_PREFIX) ? rev.slice(TAG_PREFIX.length) : rev;
     }
     const described = this.describe();
     return this.revTail() || (described.kind === 'ready' ? (described.value.defaultBranch ?? '') : '');
@@ -244,13 +311,50 @@ export class CodePage {
     return state.kind === 'ready' ? state.value.commitSha.slice(0, 10) : '';
   });
 
-  /** The branch list plus the current rev when it is not a branch (a sha, a tag) — so the
-   *  dropdown can always show what is on screen. */
-  protected readonly revOptions = computed<readonly string[]>(() => {
+  /**
+   * The branch half of the dropdown, plus the current rev when it is neither a branch nor a tag —
+   * a raw sha, or a branch deleted since the page was linked — so the dropdown can always show what
+   * is on screen. The prepended one is spelled as a branch because that is what the address it came
+   * from spells, and picking it again must land back where the reader already is.
+   */
+  protected readonly branchOptions = computed<readonly RevOption[]>(() => {
     const described = this.describe();
     const branches = described.kind === 'ready' ? described.value.branches : [];
+    const options = branches.map((branch) => branchOption(branch));
     const current = this.effectiveRev();
-    return current && !branches.includes(current) ? [current, ...branches] : branches;
+    if (!current || branches.includes(current) || this.revRef().kind === 'tag') {
+      return options;
+    }
+    return [branchOption(current), ...options];
+  });
+
+  /**
+   * The tag half, in the order the service served: newest first, which is the useful order. The
+   * tag in the address joins it when the list does not hold it — a tag deleted since the link was
+   * written, or a list that never arrived — for the same reason a stray branch does above.
+   */
+  protected readonly tagOptions = computed<readonly RevOption[]>(() => {
+    const state = this.tags();
+    const options = state.kind === 'ready' ? state.value.tags.map((tag) => tagOption(tag.name)) : [];
+    const { kind, name } = this.revRef();
+    if (kind !== 'tag' || !name || options.some((option) => option.label === name)) {
+      return options;
+    }
+    return [tagOption(name), ...options];
+  });
+
+  /** Nothing to pick, nothing to draw — an empty repository has neither branch nor tag. */
+  protected readonly hasRevOptions = computed(
+    () => this.branchOptions().length > 0 || this.tagOptions().length > 0,
+  );
+
+  /** Which option is the one on screen, in the same URL form the options carry. */
+  protected readonly pickedOption = computed(() => {
+    const rev = this.effectiveRev();
+    if (!rev) {
+      return '';
+    }
+    return this.revRef().kind === 'tag' ? `tags/${rev}` : `branches/${rev}`;
   });
 
   /** Whether the tree failed because the rev does not exist — its own screen, with a way back. */
@@ -282,6 +386,19 @@ export class CodePage {
       this.describe.set(ready(await this.api.describe(repoId)));
     } catch (error) {
       this.describe.set(failed(error));
+    }
+  }
+
+  /**
+   * Fail-soft, like the loc summary: a dropdown offering branches alone is a far smaller loss than
+   * a page that refuses to draw because the tag list did not arrive.
+   */
+  protected async loadTags(repoId: string): Promise<void> {
+    this.tags.set(LOADING);
+    try {
+      this.tags.set(ready(await this.api.tags(repoId)));
+    } catch (error) {
+      this.tags.set(failed(error));
     }
   }
 
@@ -317,17 +434,21 @@ export class CodePage {
   protected retryTree(): void {
     const repoId = this.repoId();
     if (repoId) {
-      void this.loadTree(repoId, this.revTail());
+      void this.loadTree(repoId, this.requestedRev());
     }
   }
 
-  /** A pick in the branch dropdown navigates: the rev is a place, so it goes in the path. */
-  protected switchRev(rev: string): void {
+  /**
+   * A pick in the rev dropdown navigates: the rev is a place, so it goes in the path. The option's
+   * value is already that path's tail — `branches/<name>` or `tags/<name>` — so the kind travels
+   * with the pick and nothing here has to guess it back.
+   */
+  protected switchRev(option: string): void {
     const { project, group, repository } = repositoryAddress(this.scoped());
     if (!project || !group || !repository) {
       return;
     }
-    void this.router.navigate(['/', project, group, repository, 'branches', ...rev.split('/')]);
+    void this.router.navigate(['/', project, group, repository, ...option.split('/')]);
   }
 
   /** To the same rev's log — the orthogonal view of the branch. */

@@ -164,6 +164,7 @@ describe('CommitPage', () => {
     http
       .expectOne(`/githost/api/repositories/${REPO_ID}`)
       .flush({ id: REPO_ID, defaultBranch: 'main', branches: ['main'] });
+    http.expectOne(`/githost/api/repositories/${REPO_ID}/tags`).flush({ id: REPO_ID, tags: [] });
     await settle();
     http
       .expectOne((request) => request.url === `/githost/api/repositories/${REPO_ID}/tree`)

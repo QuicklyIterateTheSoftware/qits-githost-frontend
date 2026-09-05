@@ -27,8 +27,9 @@ export interface RepositoriesResponse {
 }
 
 /**
- * The browse endpoints' shapes — `GET /githost/api/repositories/{id}[/tree|/file|/loc]`. Unlike the
- * catalogue record above, these are closed contracts: the Code page depends on every field.
+ * The browse endpoints' shapes — `GET /githost/api/repositories/{id}[/tags|/tree|/file|/loc]`.
+ * Unlike the catalogue record above, these are closed contracts: the Code page depends on every
+ * field.
  */
 export interface RepoDescribeDto {
   readonly id: string;
@@ -45,6 +46,24 @@ export interface TreeListingDto {
   readonly commitSha: string;
   /** Every blob's slash-separated path. Directories are implied and derived client-side. */
   readonly paths: readonly string[];
+}
+
+/**
+ * One tag (`GET …/tags`). `commitSha` is the PEELED commit — an annotated tag's own object sha is
+ * not something a tree read can be taken at — and `taggedAt` is null for a tag whose object carries
+ * no ident at all.
+ */
+export interface RepoTagDto {
+  readonly name: string;
+  readonly commitSha: string;
+  /** ISO-8601: the tagger's clock for an annotated tag, the committer's for a lightweight one. */
+  readonly taggedAt: string | null;
+}
+
+/** The repository's tags, newest first as the service sorted them and rendered in that order. */
+export interface RepoTagsDto {
+  readonly id: string;
+  readonly tags: readonly RepoTagDto[];
 }
 
 /** One language's line counts at the commit, split the way the Code page draws them. */

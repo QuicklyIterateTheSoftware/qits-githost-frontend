@@ -11,13 +11,28 @@
       }
     </p>
   </div>
-  @if (resolution() === 'resolved' && revOptions().length > 0) {
+  @if (resolution() === 'resolved' && hasRevOptions()) {
     <div class="rev-actions">
       <label class="rev">
-        <span class="rev-label">Branch</span>
+        <span class="rev-label">Rev</span>
         <select (change)="onRevPicked($event)">
-          @for (option of revOptions(); track option) {
-            <option [value]="option" [selected]="option === effectiveRev()">{{ option }}</option>
+          @if (branchOptions().length > 0) {
+            <optgroup label="Branches">
+              @for (option of branchOptions(); track option.value) {
+                <option [value]="option.value" [selected]="option.value === pickedOption()">
+                  {{ option.label }}
+                </option>
+              }
+            </optgroup>
+          }
+          @if (tagOptions().length > 0) {
+            <optgroup label="Tags">
+              @for (option of tagOptions(); track option.value) {
+                <option [value]="option.value" [selected]="option.value === pickedOption()">
+                  {{ option.label }}
+                </option>
+              }
+            </optgroup>
           }
         </select>
       </label>
@@ -65,8 +80,8 @@
         } @else if (unknownRev()) {
           <div class="missing-rev" role="alert">
             <p>
-              There is no <code class="mono">{{ revTail() }}</code> in this repository — the branch
-              may have been deleted, or the address mistyped.
+              There is no <code class="mono">{{ revTail() }}</code> in this repository — the ref may
+              have been deleted, or the address mistyped.
             </p>
             <button type="button" class="to-default" (click)="toDefaultBranch()">
               Go to the default branch

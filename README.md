@@ -4,12 +4,15 @@ The git host's browser plane: the Code pages — a repository's committed conten
 from the bare storage — and the storage audit. Served by qits-githost itself at `/` on
 `githost.<env>.<domain>` through Quinoa. All of it is read.
 
-- **`/<project>/<category>/<repository>`** and **`…/branches/<ref…>`** — the Code page: file tree
-  and file viewer at a rev. The bare form is the default branch and is what the platform's
-  per-repository `Code` navigation entries link to; the `branches/` form spells the ref, a slashy
-  branch name keeping its slashes as segments. The open file and a painted line range are query
-  parameters (`?path=…`, `?lines=12-20`). Three requests — describe, the whole tree in one read,
-  and one per opened file.
+- **`/<project>/<category>/<repository>`**, **`…/branches/<ref…>`** and **`…/tags/<tag…>`** — the
+  Code page: file tree and file viewer at a rev. The bare form is the default branch and is what the
+  platform's per-repository `Code` navigation entries link to; the `branches/` and `tags/` forms
+  spell the ref, a slashy name keeping its slashes as segments. **The kind is spelled** because a
+  tag may share a name with a branch: a tag address asks the service for `refs/tags/<name>`, which
+  can resolve to nothing else, while a branch keeps the bare name it always had. The dropdown offers
+  both, tags newest first as the service sorts them. The open file and a painted line range are
+  query parameters (`?path=…`, `?lines=12-20`). Four requests before a file is opened — describe,
+  the tag list, the whole tree in one read and the line counts — then one per opened file.
 - **`…/commits[/<ref…>]`** — the branch's log, from qits-projects' mirror: the full history on the
   default branch, and on any other branch only the commits its parent does not have yet. Each row
   opens the commit.
