@@ -2,10 +2,17 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { QITS_API_BASE } from './api-base';
-import type { FileContentDto, LocSummaryDto, RepoDescribeDto, TreeListingDto } from './dto';
+import type {
+  FileContentDto,
+  LocSummaryDto,
+  RepoDescribeDto,
+  RepoTagsDto,
+  TreeListingDto,
+} from './dto';
 
 /**
- * The browse reads behind the Code page — `GET /githost/api/repositories/{id}[/tree|/file|/loc]`.
+ * The browse reads behind the Code page — `GET
+ * /githost/api/repositories/{id}[/tags|/tree|/file|/loc]`.
  *
  * Addressed by the storage UUID, which the page resolves from the URL's repository name via
  * `QITS_SCOPE.repositoryId()`. The rev travels as a query parameter, so a branch name with slashes
@@ -25,6 +32,16 @@ export class BrowseApi {
   async describe(repoId: string): Promise<RepoDescribeDto> {
     return firstValueFrom(
       this.http.get<RepoDescribeDto>(`${this.base}/githost/api/repositories/${repoId}`),
+    );
+  }
+
+  /**
+   * Every tag the host holds, newest first — the read plane's list, ordered by the service and
+   * rendered in the order it arrives.
+   */
+  async tags(repoId: string): Promise<RepoTagsDto> {
+    return firstValueFrom(
+      this.http.get<RepoTagsDto>(`${this.base}/githost/api/repositories/${repoId}/tags`),
     );
   }
 

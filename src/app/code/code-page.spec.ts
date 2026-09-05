@@ -68,6 +68,18 @@ describe('CodePage', () => {
       .flush({ id: REPO_ID, defaultBranch: 'main', branches });
   }
 
+  /** The tag list rides beside every describe, so a spec that flushes one flushes both. */
+  function flushTags(names: readonly string[] = []): void {
+    http.expectOne(`${API}/tags`).flush({
+      id: REPO_ID,
+      tags: names.map((name) => ({
+        name,
+        commitSha: 'd'.repeat(40),
+        taggedAt: '2026-09-03T10:00:00Z',
+      })),
+    });
+  }
+
   /** The loc summary rides beside every tree read; a spec that spells a rev must flush it too. */
   function flushLoc(
     rev: string,
@@ -82,6 +94,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     // The address now SPELLS the branch — the bare form was a redirector.
     expect(TestBed.inject(Router).url).toContain('/qits/services/qits-ci/branches/main');
@@ -106,6 +119,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/feature/slashy');
     await settle();
     flushDescribe(['feature/slashy', 'main']);
+    flushTags();
     await settle();
     http
       .expectOne(
@@ -126,6 +140,7 @@ describe('CodePage', () => {
     );
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     // The redirect carried the deep link's query along (the serializer respells the slashes).
     expect(TestBed.inject(Router).url).toContain('/branches/main');
@@ -154,6 +169,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
@@ -180,6 +196,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
@@ -198,6 +215,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
@@ -213,6 +231,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci');
     await settle();
     flushDescribe([]);
+    flushTags();
     await settle();
 
     expect(text()).toContain('Empty repository');
@@ -223,6 +242,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/gone');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'gone')
@@ -242,6 +262,9 @@ describe('CodePage', () => {
     await settle();
     http
       .expectOne(API)
+      .flush({ error: 'no-such-repository' }, { status: 404, statusText: 'Not Found' });
+    http
+      .expectOne(`${API}/tags`)
       .flush({ error: 'no-such-repository' }, { status: 404, statusText: 'Not Found' });
     await settle();
 
@@ -265,6 +288,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
 
     expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/branches/main');
@@ -282,6 +306,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/branches/main');
     await settle();
     flushDescribe(['main', 'topic']);
+    flushTags();
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
@@ -290,7 +315,7 @@ describe('CodePage', () => {
     await settle();
 
     const select = page().querySelector('select') as HTMLSelectElement;
-    select.value = 'topic';
+    select.value = 'branches/topic';
     select.dispatchEvent(new Event('change'));
     await settle();
 
@@ -308,6 +333,7 @@ describe('CodePage', () => {
     harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/branches/main');
     await settle();
     flushDescribe(['main']);
+    flushTags();
     await settle();
     http
       .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
@@ -325,5 +351,143 @@ describe('CodePage', () => {
     http
       .expectOne((request) => request.url === `/projects/api/repositories/${REPO_ID}/commits`)
       .flush({ branch: 'main', parent: null, commits: [] });
+  });
+
+  /**
+   * A tag address asks for the FULL ref. That is what makes a tag and a branch of the same name two
+   * places rather than whichever one git resolved first — and the reader never sees the prefix.
+   */
+  it('asks for refs/tags/<name> at a tag address and shows the bare name', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/tags/2026.903.113443');
+    await settle();
+    flushDescribe(['main']);
+    flushTags(['2026.903.113443']);
+    await settle();
+    http
+      .expectOne(
+        (request) =>
+          request.url === `${API}/tree` &&
+          request.params.get('rev') === 'refs/tags/2026.903.113443',
+      )
+      .flush({
+        rev: 'refs/tags/2026.903.113443',
+        commitSha: 'e'.repeat(40),
+        paths: ['README.md'],
+      });
+    flushLoc('refs/tags/2026.903.113443');
+    await settle();
+
+    expect(text()).toContain('README.md');
+    expect(text()).toContain('2026.903.113443');
+    expect(text()).not.toContain('refs/tags/');
+  });
+
+  it('draws the dropdown as branches and tags, tags in the order served', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main', 'topic']);
+    flushTags(['2026.903.113443', '2026.831.090000']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+
+    const groups = Array.from(page().querySelectorAll('optgroup'));
+    expect(groups.map((group) => group.getAttribute('label'))).toEqual(['Branches', 'Tags']);
+    const values = Array.from(page().querySelectorAll('option')).map((option) => option.value);
+    expect(values).toEqual([
+      'branches/main',
+      'branches/topic',
+      'tags/2026.903.113443',
+      'tags/2026.831.090000',
+    ]);
+    expect((page().querySelector('select') as HTMLSelectElement).value).toBe('branches/main');
+  });
+
+  it('navigates to tags/<name> when a tag is picked, and back to branches/<name>', async () => {
+    harness = await RouterTestingHarness.create('/qits/qits-ci/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main']);
+    flushTags(['2026.903.113443']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+
+    const select = page().querySelector('select') as HTMLSelectElement;
+    select.value = 'tags/2026.903.113443';
+    select.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/tags/2026.903.113443');
+    http
+      .expectOne(
+        (request) =>
+          request.url === `${API}/tree` &&
+          request.params.get('rev') === 'refs/tags/2026.903.113443',
+      )
+      .flush({ rev: 'refs/tags/2026.903.113443', commitSha: 'e'.repeat(40), paths: ['TAG.md'] });
+    flushLoc('refs/tags/2026.903.113443');
+    await settle();
+    expect(text()).toContain('TAG.md');
+
+    select.value = 'branches/main';
+    select.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('/qits/qits-ci/qits-ci/branches/main');
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+    expect(text()).toContain('README.md');
+  });
+
+  it('offers branches alone when the tag read fails, page intact', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/branches/main');
+    await settle();
+    flushDescribe(['main']);
+    http.expectOne(`${API}/tags`).flush('boom', { status: 500, statusText: 'Server Error' });
+    await settle();
+    http
+      .expectOne((request) => request.url === `${API}/tree` && request.params.get('rev') === 'main')
+      .flush({ rev: 'main', commitSha: 'a'.repeat(40), paths: ['README.md'] });
+    flushLoc('main');
+    await settle();
+
+    expect(text()).toContain('README.md');
+    expect(page().querySelectorAll('optgroup').length).toBe(1);
+    expect(page().querySelector('optgroup')?.getAttribute('label')).toBe('Branches');
+  });
+
+  it('names a tag that does not exist and offers the way back', async () => {
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/tags/2026.101.000000');
+    await settle();
+    flushDescribe(['main']);
+    flushTags();
+    await settle();
+    http
+      .expectOne(
+        (request) =>
+          request.url === `${API}/tree` &&
+          request.params.get('rev') === 'refs/tags/2026.101.000000',
+      )
+      .flush({ error: 'no-such-rev' }, { status: 404, statusText: 'Not Found' });
+    http
+      .expectOne(
+        (request) =>
+          request.url === `${API}/loc` && request.params.get('rev') === 'refs/tags/2026.101.000000',
+      )
+      .flush({ error: 'no-such-rev' }, { status: 404, statusText: 'Not Found' });
+    await settle();
+
+    expect(text()).toContain('There is no');
+    expect(text()).toContain('2026.101.000000');
+    expect(text()).toContain('Go to the default branch');
   });
 });

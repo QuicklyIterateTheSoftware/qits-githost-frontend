@@ -43,6 +43,14 @@ describe('app routes', () => {
     expect(await resolve('/qits/qits-githost/qits-githost-service')).toBe(CodePage);
   });
 
+  /** A tag is a rev like a branch, and calver's dots are nothing to a segment. */
+  it('serves the tree at a tag in both middle spellings', async () => {
+    expect(await resolve('/qits/services/qits-githost/tags/2026.903.113443')).toBe(CodePage);
+    expect(await resolve('/qits/qits-githost/qits-githost-service/tags/2026.903.113443')).toBe(
+      CodePage,
+    );
+  });
+
   it('serves the other repository views in the component form too', async () => {
     expect(await resolve('/qits/qits-githost/qits-githost-service/branches/feature/x')).toBe(
       CodePage,

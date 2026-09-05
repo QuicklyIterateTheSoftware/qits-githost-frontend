@@ -17,9 +17,11 @@ import { OrphanedRepositoriesPage } from './repositories/orphaned-repositories-p
  * state — and under `/<slug>/<group>/<repo>/` live the repository views, in the grammar every
  * code host taught its readers:
  *
- * - `…/<repo>` and `…/<repo>/branches/<ref…>` — the tree at a rev (the Code page). The bare form
- *   is the default branch, which is what the platform's `Code` navigation entries link to; the
- *   `branches/` form spells the ref, with a slashy branch name keeping its slashes as segments.
+ * - `…/<repo>`, `…/<repo>/branches/<ref…>` and `…/<repo>/tags/<tag…>` — the tree at a rev (the Code
+ *   page). The bare form is the default branch, which is what the platform's `Code` navigation
+ *   entries link to; the `branches/` and `tags/` forms spell the ref, keeping a slashy name's
+ *   slashes as segments. Spelling the kind is what lets a tag and a branch share a name and still
+ *   be two addresses.
  * - `…/<repo>/commits[/<ref…>]` — the branch's log: everything on the default branch, and on any
  *   other branch only what its parent does not have yet (qits-projects computes the range).
  * - `…/<repo>/commit/<sha>` — one commit, as the same two-pane view scoped to what it changed:
@@ -42,10 +44,13 @@ const OWN: Routes = [{ path: '', component: OrphanedRepositoriesPage }];
  * would destroy and rebuild the page and re-fetch what it already had. A single config keeps the
  * default `RouteReuseStrategy` reusing the component, so a hop is a signal change, not a reload.
  * A slashy branch also falls out for free: the matcher consumes the whole tail, so
- * `branches/feature/x` is one ref that the page re-reads from the URL.
+ * `branches/feature/x` is one ref that the page re-reads from the URL. `tags/<tag…>` is the same
+ * shape for the other kind of ref — a tag name may hold `/` as readily as a branch name — and it is
+ * one matcher rather than two so switching between a branch and a tag is a hop, not a reload.
  */
 function treeMatcher(segments: UrlSegment[]): UrlMatchResult | null {
-  if (segments.length === 0 || segments[0].path === 'branches') {
+  const head = segments[0]?.path;
+  if (segments.length === 0 || head === 'branches' || head === 'tags') {
     return { consumed: segments };
   }
   return null;
