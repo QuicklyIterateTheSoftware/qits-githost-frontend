@@ -2,6 +2,7 @@ import { provideBrowserGlobalErrorListeners, type ApplicationConfig } from '@ang
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import {
+  provideQitsBuilds,
   provideQitsNavigation,
   provideQitsProjects,
   provideQitsScope,
@@ -10,7 +11,7 @@ import {
 import { routes } from './app.routes';
 
 /**
- * Six providers, in the order every sibling repeats.
+ * Seven providers, in the order every sibling repeats.
  *
  * - `provideBrowserGlobalErrorListeners` funnels global errors and unhandled rejections into
  *   Angular's `ErrorHandler`.
@@ -34,6 +35,11 @@ import { routes } from './app.routes';
  *   resolves the repository name in the address to the storage UUID this host keys by. The scope
  *   comes from the path, never a query parameter; without this provider the picker is not rendered
  *   at all.
+ * - `provideQitsBuilds` puts the pending-builds bolt beside that picker: a popover of what qits-ci
+ *   is building right now, from `GET /ci/api/runs/active`. Same-origin like every other read here —
+ *   the edge routes `/ci` on every vhost — so it needs the `provideHttpClient` above and names no
+ *   origin of its own. Providing it is what puts the bolt there, exactly as no project source means
+ *   no picker. Closed, it asks nothing at all; it polls only while a reader keeps the panel open.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -43,5 +49,6 @@ export const appConfig: ApplicationConfig = {
     provideQitsNavigation(),
     provideQitsProjects(),
     provideQitsScope('repository'),
+    provideQitsBuilds(),
   ],
 };
