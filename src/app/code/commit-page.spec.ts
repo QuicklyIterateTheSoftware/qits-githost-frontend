@@ -19,6 +19,11 @@ const PROJECTS = `/projects/api/repositories/${REPO_ID}`;
 /**
  * The commit view: the change set as the left pane, the open file's unified diff as the right —
  * the tree view's shape, scoped to one commit.
+ *
+ * Both panes are `@qits/ui-components` now, so what is tested here is what this page is
+ * responsible for: the change set it hands the tree, the patch it reads for the open file, and the
+ * `?path=` routing a selection turns into. How a row or a diff line is drawn is the library's own
+ * test — the DOM is asserted only as proof the hand-over happened.
  */
 describe('CommitPage', () => {
   let http: HttpTestingController;
@@ -59,6 +64,11 @@ describe('CommitPage', () => {
     }
   }
 
+  /** The row a path is drawn as — a file or a folded directory, both keyed by `data-path`. */
+  function row(path: string): HTMLButtonElement | null {
+    return page().querySelector(`.qits-change-tree-entry[data-path="${path}"]`);
+  }
+
   function flushChanges(): void {
     http.expectOne(`${PROJECTS}/commits/${SHA}/changes`).flush({
       commit: SHA,
@@ -78,8 +88,10 @@ describe('CommitPage', () => {
 
     expect(text()).toContain('dddddddddd');
     expect(text()).toContain('2 files changed against eeeeeeeeee.');
-    expect(text()).toContain('src/app/main.ts');
-    expect(text()).toContain('docs/new.md');
+    expect(row('src/app/main.ts')).not.toBeNull();
+    expect(row('docs/new.md')).not.toBeNull();
+    // The single-child chain folds: one row reads the whole address it stands for.
+    expect(row('src/app')?.textContent).toContain('src/app');
     expect(text()).toContain('Select a changed file to view its diff.');
   });
 
@@ -108,6 +120,29 @@ describe('CommitPage', () => {
     expect(page().querySelector('.line.hunk')?.textContent).toContain('@@');
   });
 
+  /** A click on a row is a navigation: the page turns the tree's selection into `?path=`. */
+  it('routes a click on a file row to ?path= and reads the patch of that file', async () => {
+    harness = await RouterTestingHarness.create(`/qits/services/qits-ci/commit/${SHA}`);
+    await settle();
+    flushChanges();
+    await settle();
+
+    row('docs/new.md')?.click();
+    await settle();
+
+    expect(TestBed.inject(Router).url).toContain('path=docs%2Fnew.md');
+    http
+      .expectOne(
+        (request) =>
+          request.url === `${PROJECTS}/commits/${SHA}/diff` &&
+          request.params.get('path') === 'docs/new.md',
+      )
+      .flush({ path: 'docs/new.md', changeType: 'ADDED', diff: '@@ -0,0 +1 @@\n+hello\n' });
+    await settle();
+
+    expect(page().querySelector('.line.add')?.textContent).toContain('+hello');
+  });
+
   it('says an empty patch is a binary change or a pure rename, not a blank pane', async () => {
     harness = await RouterTestingHarness.create(
       `/qits/services/qits-ci/commit/${SHA}?path=docs/new.md`,
@@ -120,7 +155,68 @@ describe('CommitPage', () => {
       .flush({ path: 'docs/new.md', changeType: 'ADDED', diff: '' });
     await settle();
 
-    expect(text()).toContain('No textual change to show');
+    expect(text()).toContain(
+      'No textual change to show — a binary file, a pure rename, or a patch too large to send.',
+    );
+  });
+
+  /**
+   * The old flat list drew every change as the same grey letter. Three kinds of change now read as
+   * three different marks, and a rename says where the file came from — the fact its empty patch
+   * cannot state for itself.
+   */
+  it('draws an add, a delete and a rename distinguishably', async () => {
+    harness = await RouterTestingHarness.create(`/qits/services/qits-ci/commit/${SHA}`);
+    await settle();
+    http.expectOne(`${PROJECTS}/commits/${SHA}/changes`).flush({
+      commit: SHA,
+      parent: 'e'.repeat(40),
+      files: [
+        { path: 'docs/new.md', oldPath: null, changeType: 'ADDED' },
+        { path: 'docs/gone.md', oldPath: null, changeType: 'DELETED' },
+        { path: 'docs/moved.md', oldPath: 'docs/was.md', changeType: 'RENAMED' },
+      ],
+    });
+    await settle();
+
+    const marks = [...page().querySelectorAll('.qits-change-tree-mark')] as HTMLElement[];
+    const letters = new Map(
+      marks.map((mark) => [mark.dataset['change'] ?? '', mark.textContent?.trim() ?? '']),
+    );
+
+    expect(letters.get('ADDED')).toBe('A');
+    expect(letters.get('DELETED')).toBe('D');
+    expect(letters.get('RENAMED')).toBe('R');
+    expect(new Set(letters.values()).size).toBe(3);
+
+    expect(row('docs/moved.md')?.getAttribute('title')).toContain('docs/was.md');
+  });
+
+  /**
+   * The tree owns its own expansion and the page owns the address. Folding a directory shut is the
+   * tree's business alone: the reader keeps the file they were reading, and no read is made.
+   */
+  it('folds a directory shut without changing ?path=', async () => {
+    harness = await RouterTestingHarness.create(
+      `/qits/services/qits-ci/commit/${SHA}?path=docs/new.md`,
+    );
+    await settle();
+    flushChanges();
+    await settle();
+    http
+      .expectOne((request) => request.url === `${PROJECTS}/commits/${SHA}/diff`)
+      .flush({ path: 'docs/new.md', changeType: 'ADDED', diff: '@@ -0,0 +1 @@\n+hello\n' });
+    await settle();
+
+    const before = TestBed.inject(Router).url;
+    expect(row('src/app/main.ts')).not.toBeNull();
+
+    row('src/app')?.click();
+    await settle();
+
+    expect(row('src/app/main.ts')).toBeNull();
+    expect(TestBed.inject(Router).url).toBe(before);
+    expect(page().querySelector('.line.add')?.textContent).toContain('+hello');
   });
 
   it('goes back to the log it came from, and can browse the tree at the commit', async () => {
@@ -134,9 +230,7 @@ describe('CommitPage', () => {
     const buttons = [...page().querySelectorAll('.view-switch')] as HTMLButtonElement[];
     buttons.find((button) => button.textContent?.includes('Commits'))?.click();
     await settle();
-    expect(TestBed.inject(Router).url).toContain(
-      '/qits/services/qits-ci/commits/feature/slashy',
-    );
+    expect(TestBed.inject(Router).url).toContain('/qits/services/qits-ci/commits/feature/slashy');
     // The commits page the navigation landed on makes its own reads; drain them.
     http
       .expectOne(`/githost/api/repositories/${REPO_ID}`)

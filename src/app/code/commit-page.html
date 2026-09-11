@@ -43,32 +43,31 @@
       (retry)="retryChanges()"
     />
 
-    @if (changes().kind === 'ready' && repoId(); as id) {
+    @if (changes().kind === 'ready' && repoId()) {
       <div class="panes">
         <aside class="side">
-          <ul class="files" role="list">
-            @for (file of files(); track file.path) {
-              <li>
-                <button
-                  type="button"
-                  class="file"
-                  [class.selected]="file.path === selectedPath()"
-                  [attr.title]="titleOf(file)"
-                  (click)="openFile(file.path)"
-                >
-                  <span class="mark" [attr.data-change]="file.changeType">{{ markOf(file) }}</span>
-                  <span class="path">{{ file.path }}</span>
-                </button>
-              </li>
-            } @empty {
-              <li>
-                <app-empty message="This commit changed no files — a merge, or an empty commit." />
-              </li>
-            }
-          </ul>
+          <qits-change-tree
+            label="Files this commit changed"
+            [entries]="entries()"
+            [selected]="selectedPath()"
+            (selectedChange)="openFile($event ?? '')"
+          />
         </aside>
         <section class="main">
-          <app-diff-viewer [repoId]="id" [sha]="sha()" [path]="selectedPath()" />
+          @if (selectedPath()) {
+            <app-async
+              [state]="diff()"
+              [loadingLabel]="'Loading the diff of ' + selectedPath()"
+              [errorLabel]="'Failed to load the diff of ' + selectedPath()"
+              (retry)="retryDiff()"
+            />
+          }
+
+          <!-- Only a read that answered draws: "no textual change" is a fact about a patch that
+               arrived, never a stand-in for one still in flight or refused. -->
+          @if (!selectedPath() || diff().kind === 'ready') {
+            <qits-diff-viewer [patch]="patch()" [path]="selectedPath() ?? ''" />
+          }
         </section>
       </div>
     }

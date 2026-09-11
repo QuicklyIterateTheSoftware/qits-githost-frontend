@@ -50,68 +50,6 @@
   }
 }
 
-.files {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.file {
-  display: flex;
-  gap: 0.45rem;
-  align-items: baseline;
-  width: 100%;
-  padding: 0.2rem 0.35rem;
-  border: 0;
-  border-radius: 0.25rem;
-  background: none;
-  font: inherit;
-  font-size: 0.82rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.file:hover {
-  background: #f3f4f6;
-}
-
-.file.selected {
-  background: #eff6ff;
-}
-
-.file.selected .path {
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-/* One letter says what happened to the file; the row's title spells it out. */
-.mark {
-  flex: 0 0 1.1rem;
-  color: #6b7280;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.75rem;
-  text-align: center;
-}
-
-.mark[data-change='ADDED'] {
-  color: #065f46;
-}
-
-.mark[data-change='DELETED'] {
-  color: #991b1b;
-}
-
-.mark[data-change='RENAMED'],
-.mark[data-change='COPIED'] {
-  color: #92400e;
-}
-
-.path {
-  overflow-wrap: anywhere;
-  color: #111827;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
 .subtle {
   color: #6b7280;
   font-size: 0.85rem;

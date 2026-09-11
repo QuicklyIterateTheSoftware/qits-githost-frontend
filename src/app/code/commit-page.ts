@@ -9,31 +9,56 @@ import {
   untracked,
 } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { QITS_REPOSITORIES, QITS_SCOPE } from '@qits/ui-components';
+import {
+  QITS_REPOSITORIES,
+  QITS_SCOPE,
+  QitsChangeTree,
+  QitsDiffViewer,
+  type QitsChangeEntry,
+} from '@qits/ui-components';
 import { ProjectsApi } from '../api/projects-api';
-import type { CommitChangesDto, CommitFileChangeDto } from '../api/dto';
+import type { CommitChangesDto, CommitFileDiffDto } from '../api/dto';
 import { Async } from '../ui/async';
 import { Empty } from '../ui/empty';
 import { LOADING, failed, ready, type Loadable } from '../ui/loadable';
-import { DiffViewer } from './diff-viewer';
 import { repositoryAddress } from './repository-address';
 
 /**
  * One commit — the same two-pane view as the tree, scoped to what the commit changed.
  *
- * `…/<repo>/commit/<sha>`: the touched files on the left (a flat list, because a commit's change
- * set is small and its shape IS the interesting fact), the open file's unified diff on the right.
- * The open file is `?path=`, the same grammar as everywhere else; `?branch=` remembers which log
- * the reader came from, so the way back lands on the list they left rather than the default one.
+ * `…/<repo>/commit/<sha>`: the touched files on the left, the open file's unified diff on the
+ * right. The open file is `?path=`, the same grammar as everywhere else; `?branch=` remembers which
+ * log the reader came from, so the way back lands on the list they left rather than the default one.
  *
  * The change set and the diffs come from qits-projects (its mirror is where the diff base
  * arithmetic lives — first parent, or the empty tree for a root commit); nothing here asks the git
  * host, because a commit view has no ref to resolve.
+ *
+ * **The left pane is a folding tree, not a flat list.** The shape of a change set is still the
+ * interesting fact — it is the first thing a reader wants from a commit — and the tree states that
+ * shape directly where a flat list only implied it. A commit that touches three directories and
+ * nothing else reads as three folded rows each naming its whole address, instead of N strings that
+ * repeat the same prefix and leave the reader to spot the grouping by eye. Folding a single-child
+ * chain into one row is what makes that true of this platform's paths in particular.
+ *
+ * **Both panes are `@qits/ui-components`' `QitsChangeTree` and `QitsDiffViewer`, shared with the
+ * release request's changes tab.** A commit and a fold are the same question asked of different
+ * endpoints, so the drawing is one implementation and the reading is two.
+ *
+ * **That sharing is why this page owns the per-file patch read.** The diff pane used to fetch its
+ * own patch from `…/commits/{sha}/diff`; a self-fetching child cannot serve a second caller whose
+ * patch comes from somewhere else, so the read moved up here and the component takes the text as an
+ * input. The stale-answer guard came with it: an answer for a file nobody is reading any more is
+ * dropped rather than drawn.
+ *
+ * **Add, delete and rename are now distinguishable.** The old flat list drew every mark the same
+ * grey letter; the tree tones the mark by change type and a renamed row's title names the path it
+ * came from, which is the one thing a rename's empty patch cannot say for itself.
  */
 @Component({
   selector: 'app-commit-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty, DiffViewer],
+  imports: [Async, Empty, QitsChangeTree, QitsDiffViewer],
   templateUrl: './commit-page.html',
   styleUrls: ['../ui/page.css', './commit-page.css'],
 })
@@ -75,6 +100,9 @@ export class CommitPage {
 
   protected readonly changes = signal<Loadable<CommitChangesDto>>(LOADING);
 
+  /** The open file's patch. Its own read, because the diff pane no longer makes one. */
+  protected readonly diff = signal<Loadable<CommitFileDiffDto>>(LOADING);
+
   private changesFor: string | null = null;
 
   constructor() {
@@ -99,11 +127,39 @@ export class CommitPage {
         }
       });
     });
+
+    // The open file's patch, read here rather than in the pane that draws it — see the class note.
+    effect(() => {
+      const repoId = this.repoId();
+      const sha = this.sha();
+      const path = this.selectedPath();
+      untracked(() => {
+        if (repoId && sha && path) {
+          void this.loadDiff(repoId, sha, path);
+        }
+      });
+    });
   }
 
-  protected readonly files = computed<readonly CommitFileChangeDto[]>(() => {
+  /**
+   * The change set as the tree takes it. The wire's `oldPath` is the tree's `previousPath`: the
+   * same fact under the name the shared model chose, which is adaptation, not translation.
+   */
+  protected readonly entries = computed<readonly QitsChangeEntry[]>(() => {
     const state = this.changes();
-    return state.kind === 'ready' ? state.value.files : [];
+    return state.kind === 'ready'
+      ? state.value.files.map((file) => ({
+          path: file.path,
+          previousPath: file.oldPath,
+          changeType: file.changeType,
+        }))
+      : [];
+  });
+
+  /** The patch text, or nothing at all while the read is in flight or after it refused. */
+  protected readonly patch = computed(() => {
+    const state = this.diff();
+    return state.kind === 'ready' ? state.value.diff : '';
   });
 
   protected readonly shortSha = computed(() => this.sha().slice(0, 10));
@@ -134,6 +190,30 @@ export class CommitPage {
     const sha = this.sha();
     if (repoId && sha) {
       void this.loadChanges(repoId, sha);
+    }
+  }
+
+  private async loadDiff(repoId: string, sha: string, path: string): Promise<void> {
+    this.diff.set(LOADING);
+    try {
+      const diff = await this.projects.commitFileDiff(repoId, sha, path);
+      // A late answer for a file nobody is reading any more is dropped rather than drawn.
+      if (this.selectedPath() === path) {
+        this.diff.set(ready(diff));
+      }
+    } catch (error) {
+      if (this.selectedPath() === path) {
+        this.diff.set(failed(error));
+      }
+    }
+  }
+
+  protected retryDiff(): void {
+    const repoId = this.repoId();
+    const sha = this.sha();
+    const path = this.selectedPath();
+    if (repoId && sha && path) {
+      void this.loadDiff(repoId, sha, path);
     }
   }
 
@@ -169,15 +249,5 @@ export class CommitPage {
       return;
     }
     void this.router.navigate(['/', project, group, repository, 'branches', this.sha()]);
-  }
-
-  /** `M` on the row; the title spells it out. */
-  protected markOf(file: CommitFileChangeDto): string {
-    return file.changeType.charAt(0);
-  }
-
-  protected titleOf(file: CommitFileChangeDto): string {
-    const moved = file.oldPath ? ` (from ${file.oldPath})` : '';
-    return `${file.changeType.toLowerCase().replace('_', ' ')}${moved}`;
   }
 }
