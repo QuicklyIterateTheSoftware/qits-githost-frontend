@@ -5,7 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import {
-  provideQitsNavigationLinks,
+  provideQitsNavigationTree,
   provideQitsProjectList,
   provideQitsRepositoryList,
   provideQitsScope,
@@ -13,9 +13,12 @@ import {
 import { routes } from '../app.routes';
 import type { CommitDto } from '../api/dto';
 
+/** Where the fixture navigation says qits-projects answers — its own host, not this one. */
+const PROJECTS_ORIGIN = 'https://projects.qits.example';
+
 const REPO_ID = '3f6c1a9e-0b25-4d1e-9c77-2a0e5b8f4d31';
 const GITHOST = `/githost/api/repositories/${REPO_ID}`;
-const PROJECTS = `/projects/api/repositories/${REPO_ID}`;
+const PROJECTS = `${PROJECTS_ORIGIN}/projects/api/repositories/${REPO_ID}`;
 
 function commit(hash: string, message: string): CommitDto {
   return {
@@ -45,7 +48,10 @@ describe('CommitsPage', () => {
         provideLocationMocks(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideQitsNavigationLinks([{ label: 'Git host', href: '/githost/' }]),
+        provideQitsNavigationTree({
+          links: [{ label: 'Git host', href: '/githost/' }],
+          applications: { 'qits-projects': { origin: PROJECTS_ORIGIN } },
+        }),
         provideQitsProjectList([{ id: 'p-1', slug: 'qits', name: 'qits' }]),
         provideQitsRepositoryList([
           { id: REPO_ID, name: 'qits-ci', component: 'qits-ci', category: 'services' },

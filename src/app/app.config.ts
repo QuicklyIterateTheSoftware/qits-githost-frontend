@@ -18,8 +18,9 @@ import { routes } from './app.routes';
  * - `provideRouter` carries this app's state in the URL, so every view is bookmarkable.
  * - `withFetch` is not a preference. The default XHR backend is invisible to OTLP fetch
  *   instrumentation, so choosing it would quietly forfeit client spans the moment this deployment
- *   grows a telemetry relay. Every call this app makes is a same-origin path and carries no
- *   credential.
+ *   grows a telemetry relay. This app's own reads (`/githost/api/…`) are same-origin paths and carry
+ *   no credential; a read of another application's API goes to that application's own origin from
+ *   the navigation below, with the session.
  * - `provideQitsNavigation` gives `QitsMainLayout` its left navigation, by asking the edge for
  *   `/main-navigation` once at startup. Without it the chrome renders no links at all. It needs the
  *   `provideHttpClient` above.
@@ -36,9 +37,9 @@ import { routes } from './app.routes';
  *   comes from the path, never a query parameter; without this provider the picker is not rendered
  *   at all.
  * - `provideQitsBuilds` puts the pending-builds bolt beside that picker: a popover of what qits-ci
- *   is building right now, from `GET /ci/api/runs/active`. Same-origin like every other read here —
- *   the edge routes `/ci` on every vhost — so it needs the `provideHttpClient` above and names no
- *   origin of its own. Providing it is what puts the bolt there, exactly as no project source means
+ *   is building right now, from `GET /ci/api/runs/active` on qits-ci's own origin, which the library
+ *   reads from the navigation — the edge routes `/ci` on qits-ci's host only — so it needs the
+ *   `provideHttpClient` above and this app composes no hostname. Providing it is what puts the bolt there, exactly as no project source means
  *   no picker. Closed, it asks nothing at all; it polls only while a reader keeps the panel open.
  */
 export const appConfig: ApplicationConfig = {

@@ -5,12 +5,15 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import {
-  provideQitsNavigationLinks,
+  provideQitsNavigationTree,
   provideQitsProjectList,
   provideQitsRepositoryList,
   provideQitsScope,
 } from '@qits/ui-components';
 import { routes } from '../app.routes';
+
+/** Where the fixture navigation says qits-projects answers — its own host, not this one. */
+const PROJECTS_ORIGIN = 'https://projects.qits.example';
 
 const REPO_ID = '3f6c1a9e-0b25-4d1e-9c77-2a0e5b8f4d31';
 const API = `/githost/api/repositories/${REPO_ID}`;
@@ -34,7 +37,10 @@ describe('CodePage', () => {
         provideLocationMocks(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideQitsNavigationLinks([{ label: 'Git host', href: '/githost/' }]),
+        provideQitsNavigationTree({
+          links: [{ label: 'Git host', href: '/githost/' }],
+          applications: { 'qits-projects': { origin: PROJECTS_ORIGIN } },
+        }),
         provideQitsProjectList([{ id: 'p-1', slug: 'qits', name: 'qits' }]),
         provideQitsRepositoryList([
           { id: REPO_ID, name: 'qits-ci', component: 'qits-ci', category: 'services' },
@@ -349,7 +355,7 @@ describe('CodePage', () => {
     http.expectOne(API).flush({ id: REPO_ID, defaultBranch: 'main', branches: ['main'] });
     await settle();
     http
-      .expectOne((request) => request.url === `/projects/api/repositories/${REPO_ID}/commits`)
+      .expectOne((request) => request.url === `${PROJECTS_ORIGIN}/projects/api/repositories/${REPO_ID}/commits`)
       .flush({ branch: 'main', parent: null, commits: [] });
   });
 
