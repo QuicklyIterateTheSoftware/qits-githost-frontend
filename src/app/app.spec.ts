@@ -4,14 +4,18 @@ import { provideLocationMocks } from '@angular/common/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { provideQitsNavigationLinks } from '@qits/ui-components';
+import { provideQitsNavigationTree } from '@qits/ui-components';
 import { App } from './app';
 import { routes } from './app.routes';
 
+/** Where the fixture navigation says qits-projects answers — its own host, not this one. */
+const PROJECTS_ORIGIN = 'https://projects.qits.example';
+
 /**
- * A fixture navigation, not the platform's. `provideQitsNavigationLinks` answers the layout's
+ * A fixture navigation, not the platform's. `provideQitsNavigationTree` answers the layout's
  * `QITS_NAVIGATION` from a literal, so the chrome makes no `/main-navigation` request — which is
- * what keeps `http.verify()` honest instead of failing on a call this file never asked for.
+ * what keeps `http.verify()` honest instead of failing on a call this file never asked for. It also
+ * names qits-projects' origin, which is where the audit's catalogue read goes.
  */
 const NAV = [
   { label: 'CI', href: '/ci/' },
@@ -30,7 +34,10 @@ describe('App', () => {
         provideLocationMocks(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideQitsNavigationLinks(NAV),
+        provideQitsNavigationTree({
+          links: NAV,
+          applications: { 'qits-projects': { origin: PROJECTS_ORIGIN } },
+        }),
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -55,7 +62,7 @@ describe('App', () => {
 
     // The audit's two reads, drained so the harness has no dangling request.
     http.expectOne('/githost/api/repositories').flush({ repositories: [] });
-    http.expectOne('/projects/api/repositories').flush({ repositories: [] });
+    http.expectOne(`${PROJECTS_ORIGIN}/projects/api/repositories`).flush({ repositories: [] });
   });
 
   it('draws an unknown URL as a page, still inside the chrome', async () => {

@@ -4,9 +4,12 @@ import { provideLocationMocks } from '@angular/common/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { provideQitsNavigationLinks } from '@qits/ui-components';
+import { provideQitsNavigationTree } from '@qits/ui-components';
 import { routes } from '../app.routes';
 import type { RepositoryCoordinatesDto, RepositoryDto } from '../api/dto';
+
+/** Where the fixture navigation says qits-projects answers — its own host, not this one. */
+const PROJECTS_ORIGIN = 'https://projects.qits.example';
 
 /** Storage ids as the host really mints them: opaque, and readable as nothing but a key. */
 const CI = '3f6c1a9e-0b25-4d1e-9c77-2a0e5b8f4d31';
@@ -34,7 +37,10 @@ describe('OrphanedRepositoriesPage', () => {
         provideLocationMocks(),
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideQitsNavigationLinks([{ label: 'Git host', href: '/githost/' }]),
+        provideQitsNavigationTree({
+          links: [{ label: 'Git host', href: '/githost/' }],
+          applications: { 'qits-projects': { origin: PROJECTS_ORIGIN } },
+        }),
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -66,7 +72,7 @@ describe('OrphanedRepositoriesPage', () => {
   }
 
   function flushCatalogue(repositories: readonly RepositoryCoordinatesDto[]): void {
-    http.expectOne('/projects/api/repositories').flush({ repositories });
+    http.expectOne(`${PROJECTS_ORIGIN}/projects/api/repositories`).flush({ repositories });
   }
 
   function catalogued(id: string, name: string): RepositoryCoordinatesDto {
@@ -110,7 +116,7 @@ describe('OrphanedRepositoriesPage', () => {
     await open();
     flushStored([{ id: ORPHAN }]);
     http
-      .expectOne('/projects/api/repositories')
+      .expectOne(`${PROJECTS_ORIGIN}/projects/api/repositories`)
       .flush({ message: 'catalogue unavailable' }, { status: 503, statusText: 'Unavailable' });
     await settle();
 
@@ -123,7 +129,7 @@ describe('OrphanedRepositoriesPage', () => {
   it('retries both reads on request', async () => {
     await open();
     http.expectOne('/githost/api/repositories').error(new ProgressEvent('error'));
-    http.expectOne('/projects/api/repositories').flush({ repositories: [] });
+    http.expectOne(`${PROJECTS_ORIGIN}/projects/api/repositories`).flush({ repositories: [] });
     await settle();
     expect(text()).toContain('the service is unreachable');
 
