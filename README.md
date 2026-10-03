@@ -61,11 +61,10 @@ npm test          # vitest on jsdom
 npm run build     # dist/qits-spa-githost/browser, base href /
 ```
 
-`.npmrc` points npm at the two local platform registries: npmjs through qits-platform-mirror's
-pull-through cache on mirror.dev.localhost:8080, the `@qits` scope from qits-artifacts on
-registry.dev.localhost:8080. Both are edge vhosts the deployment host publishes, so they work for a
-developer on that host and nowhere else — CI passes the in-network addresses through the environment
-instead.
+`.npmrc` points npm at the two public platform registries: npmjs through qits-mirror's
+pull-through cache at mirror.qits.wohlben.eu, the `@qits` scope from qits-artifacts' hosted registry
+at registry.qits.wohlben.eu. Both are reachable exactly as written from a workstation or CI alike,
+with no in-network alias to swap in.
 
 Angular stays on **21.2**, deliberately not 22: Angular CLI 22 requires node `^22.22.3`, and the
 platform's node is 22.22.0. Quinoa shells out to the host's node during `mvn package`, so this
