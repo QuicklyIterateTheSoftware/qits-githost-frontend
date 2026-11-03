@@ -12,7 +12,8 @@ const SHA = 'a'.repeat(40);
 /**
  * Where these reads go. qits-projects answers on its own host — the edge no longer routes its paths
  * on this one — so every read is an absolute URL on the origin the navigation names, carries the
- * session, and is not made at all until the navigation has said where that origin is.
+ * bearer (`qitsBearerInterceptor`'s job, not asserted here), and is not made at all until the
+ * navigation has said where that origin is.
  */
 describe('ProjectsApi', () => {
   let tree: WritableSignal<QitsNavTree | undefined>;
@@ -54,30 +55,30 @@ describe('ProjectsApi', () => {
     http.expectOne(`${PROJECTS_ORIGIN}/projects/api/repositories`).flush({ repositories: [] });
   });
 
-  it('reads the catalogue on qits-projects’ own origin, with the session', async () => {
+  it('reads the catalogue on qits-projects’ own origin, for the interceptor to sign', async () => {
     answer({ 'qits-projects': { origin: PROJECTS_ORIGIN } });
     const catalogue = api.catalogue();
     await settle();
     const request = http.expectOne(`${PROJECTS_ORIGIN}/projects/api/repositories`);
-    expect(request.request.withCredentials).toBe(true);
+    expect(request.request.withCredentials).toBe(false);
     request.flush({ repositories: [{ id: REPO_ID }] });
     await expect(catalogue).resolves.toMatchObject([{ id: REPO_ID }]);
   });
 
-  it('reads the log, the changes and a diff there too, with the session', async () => {
+  it('reads the log, the changes and a diff there too, for the interceptor to sign', async () => {
     answer({ 'qits-projects': { origin: PROJECTS_ORIGIN } });
     const base = `${PROJECTS_ORIGIN}/projects/api/repositories/${REPO_ID}/commits`;
 
     void api.commits(REPO_ID, 'main');
     await settle();
     const log = http.expectOne((r) => r.url === base && r.params.get('branch') === 'main');
-    expect(log.request.withCredentials).toBe(true);
+    expect(log.request.withCredentials).toBe(false);
     log.flush({});
 
     void api.commitChanges(REPO_ID, SHA);
     await settle();
     const changes = http.expectOne(`${base}/${SHA}/changes`);
-    expect(changes.request.withCredentials).toBe(true);
+    expect(changes.request.withCredentials).toBe(false);
     changes.flush({});
 
     void api.commitFileDiff(REPO_ID, SHA, 'README.md');
@@ -85,7 +86,7 @@ describe('ProjectsApi', () => {
     const diff = http.expectOne(
       (r) => r.url === `${base}/${SHA}/diff` && r.params.get('path') === 'README.md',
     );
-    expect(diff.request.withCredentials).toBe(true);
+    expect(diff.request.withCredentials).toBe(false);
     diff.flush({});
   });
 

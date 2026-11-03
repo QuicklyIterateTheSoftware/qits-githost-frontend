@@ -20,10 +20,10 @@ import type {
  *
  * qits-projects answers on its own host, not this one: the edge routes an application's paths on
  * that application's host only. So every call here goes to `applications['qits-projects'].origin`
- * from the edge's `/main-navigation`, carries the session (`withCredentials` — the edge answers
- * credentialed CORS for any origin under the platform domain), and waits for the navigation to
- * answer rather than firing a relative path at this host first. Where the navigation names no
- * origin the path stays relative, same-origin — what an older edge still routes.
+ * from the edge's `/main-navigation`, carries the bearer (`qitsBearerInterceptor` signs any
+ * platform host, not only this one), and waits for the navigation to answer rather than firing a
+ * relative path at this host first. Where the navigation names no origin the path stays relative,
+ * same-origin — what an older edge still routes.
  *
  * The chrome's own reads (`/projects/api/projects`, the scoped repository list) stay in
  * `@qits/ui-components`.
@@ -41,9 +41,7 @@ export class ProjectsApi {
   async catalogue(): Promise<readonly RepositoryCoordinatesDto[]> {
     const url = await this.url('/projects/api/repositories');
     const response = await firstValueFrom(
-      this.http.get<{ readonly repositories: readonly RepositoryCoordinatesDto[] }>(url, {
-        withCredentials: true,
-      }),
+      this.http.get<{ readonly repositories: readonly RepositoryCoordinatesDto[] }>(url),
     );
     return response?.repositories ?? [];
   }
@@ -51,22 +49,18 @@ export class ProjectsApi {
   /** The branch's log: parent..branch, or the full history when no parent applies (main). */
   async commits(repoId: string, branch: string): Promise<CommitLogDto> {
     const url = await this.url(`/projects/api/repositories/${repoId}/commits`);
-    return firstValueFrom(
-      this.http.get<CommitLogDto>(url, { params: { branch }, withCredentials: true }),
-    );
+    return firstValueFrom(this.http.get<CommitLogDto>(url, { params: { branch } }));
   }
 
   /** The files one commit changed, against its first parent. */
   async commitChanges(repoId: string, sha: string): Promise<CommitChangesDto> {
     const url = await this.url(`/projects/api/repositories/${repoId}/commits/${sha}/changes`);
-    return firstValueFrom(this.http.get<CommitChangesDto>(url, { withCredentials: true }));
+    return firstValueFrom(this.http.get<CommitChangesDto>(url));
   }
 
   /** One file's unified diff within the commit. */
   async commitFileDiff(repoId: string, sha: string, path: string): Promise<CommitFileDiffDto> {
     const url = await this.url(`/projects/api/repositories/${repoId}/commits/${sha}/diff`);
-    return firstValueFrom(
-      this.http.get<CommitFileDiffDto>(url, { params: { path }, withCredentials: true }),
-    );
+    return firstValueFrom(this.http.get<CommitFileDiffDto>(url, { params: { path } }));
   }
 }
