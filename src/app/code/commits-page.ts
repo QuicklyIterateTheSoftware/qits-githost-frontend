@@ -9,7 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { QITS_REPOSITORIES, QITS_SCOPE } from '@qits/ui-components';
+import { QITS_REPOSITORIES, QITS_SCOPE, QitsCommitMessage } from '@qits/ui-components';
 import { BrowseApi } from '../api/browse-api';
 import { ProjectsApi } from '../api/projects-api';
 import type { CommitDto, CommitLogDto, RepoDescribeDto } from '../api/dto';
@@ -43,7 +43,7 @@ import { repositoryAddress } from './repository-address';
 @Component({
   selector: 'app-commits-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Async, Empty],
+  imports: [Async, Empty, QitsCommitMessage],
   templateUrl: './commits-page.html',
   styleUrls: ['../ui/page.css', './commits-page.css'],
 })

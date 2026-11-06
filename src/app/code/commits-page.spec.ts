@@ -9,6 +9,8 @@ import {
   provideQitsProjectList,
   provideQitsRepositoryList,
   provideQitsScope,
+  provideQitsWorkBriefs,
+  type QitsWorkBrief,
 } from '@qits/ui-components';
 import { routes } from '../app.routes';
 import type { CommitDto } from '../api/dto';
@@ -200,5 +202,76 @@ describe('CommitsPage', () => {
     await settle();
 
     expect(text()).toContain('already on its parent');
+  });
+});
+
+/**
+ * The same route, with a work brief source that knows one id — a separate module so the fake
+ * source can be a provider from the start rather than added after `TestBed` has compiled.
+ */
+describe('CommitsPage work references', () => {
+  let http: HttpTestingController;
+  let harness: RouterTestingHarness;
+
+  function flushDescribe(branches: readonly string[]): void {
+    http.expectOne(GITHOST).flush({ id: REPO_ID, defaultBranch: 'main', branches });
+  }
+
+  async function settle(): Promise<void> {
+    for (let round = 0; round < 8; round += 1) {
+      await Promise.resolve();
+      await harness.fixture.whenStable();
+    }
+  }
+
+  function page(): HTMLElement {
+    return harness.fixture.nativeElement as HTMLElement;
+  }
+
+  it('draws a subject naming a work id as a qits-work-ref with its brief', async () => {
+    const brief: QitsWorkBrief = {
+      id: 'uuid-qits-42',
+      qualifiedId: 'qits-42',
+      archetype: 'TICKET',
+      status: 'READY_FOR_DEV',
+      title: 'Draw commit subjects through qits-commit-message',
+      updatedAt: '2026-11-06T11:29:56.962030Z',
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(routes),
+        provideLocationMocks(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideQitsNavigationTree({
+          links: [{ label: 'Git host', href: '/githost/' }],
+          applications: { 'qits-projects': { origin: PROJECTS_ORIGIN } },
+        }),
+        provideQitsProjectList([{ id: 'p-1', slug: 'qits', name: 'qits' }]),
+        provideQitsRepositoryList([
+          { id: REPO_ID, name: 'qits-ci', component: 'qits-ci', category: 'services' },
+        ]),
+        provideQitsScope('repository'),
+        provideQitsWorkBriefs(async (project, ids) =>
+          project === 'qits' && ids.includes('qits-42') ? [brief] : [],
+        ),
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+
+    harness = await RouterTestingHarness.create('/qits/services/qits-ci/commits');
+    await settle();
+    flushDescribe(['main']);
+    await settle();
+    http
+      .expectOne((request) => request.url === `${PROJECTS}/commits`)
+      .flush({ branch: 'main', parent: null, commits: [commit('a', 'fix(qits-42): first')] });
+    await settle();
+
+    const ref = page().querySelector('.message qits-work-ref') as HTMLElement;
+    expect(ref).not.toBeNull();
+    expect(ref.querySelector('.qits-work-ref')?.textContent).toBe('qits-42');
+
+    http.verify();
   });
 });
