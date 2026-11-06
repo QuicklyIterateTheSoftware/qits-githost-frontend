@@ -70,7 +70,9 @@
                 <li>
                   <button type="button" class="commit" (click)="openCommit(commit)">
                     <code class="mono sha">{{ commit.shortHash }}</code>
-                    <span class="message">{{ commit.message }}</span>
+                    <span class="message"
+                      ><qits-commit-message [message]="commit.message" [project]="scoped().project"
+                    /></span>
                     <span class="who">{{ commit.author }}</span>
                     <span class="when">{{ dateOf(commit) }}</span>
                     <span class="count">
