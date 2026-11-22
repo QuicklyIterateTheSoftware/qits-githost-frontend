@@ -38,7 +38,7 @@
     "@qits/angular": "2026.1121.220856",
     "@qits/ci-golden-masters": "2026.1119.60052",
     "@qits/edge-golden-masters": "2026.1115.212737",
-    "@qits/projects-golden-masters": "2026.1116.190952",
+    "@qits/projects-golden-masters": "2026.1122.94922",
     "angular-eslint": "^21.4.0",
     "eslint": "^10.3.0",
     "jsdom": "^28.0.0",
